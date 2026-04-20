@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 240" fill="none">
+  <!-- Body -->
+  <ellipse cx="100" cy="170" rx="55" ry="60" fill="#5B3E96"/>
+  <ellipse cx="100" cy="170" rx="48" ry="52" fill="#7B52C7"/>
+
+  <!-- Belt -->
+  <rect x="52" y="155" width="96" height="12" rx="4" fill="#F7D020"/>
+  <rect x="88" y="152" width="24" height="18" rx="3" fill="#FFB800"/>
+
+  <!-- Head -->
+  <circle cx="100" cy="85" r="52" fill="#FFD5A3"/>
+  <circle cx="100" cy="85" r="48" fill="#FFDEAB"/>
+
+  <!-- Hair -->
+  <path d="M48 75 C48 40, 100 15, 152 40 C158 55, 155 70, 152 80 C145 50, 55 50, 48 75Z" fill="#4A2800"/>
+  <path d="M145 55 C160 45, 170 60, 165 80 C162 70, 155 58, 145 55Z" fill="#4A2800"/>
+  <path d="M55 55 C40 45, 30 60, 35 80 C38 70, 45 58, 55 55Z" fill="#4A2800"/>
+
+  <!-- Eyes -->
+  <ellipse cx="80" cy="85" rx="10" ry="11" fill="white"/>
+  <ellipse cx="120" cy="85" rx="10" ry="11" fill="white"/>
+  <circle cx="82" cy="86" r="6" fill="#2D1B00"/>
+  <circle cx="122" cy="86" r="6" fill="#2D1B00"/>
+  <circle cx="84" cy="83" r="2.5" fill="white"/>
+  <circle cx="124" cy="83" r="2.5" fill="white"/>
+
+  <!-- Eyebrows -->
+  <path d="M68 72 Q80 65, 92 72" stroke="#4A2800" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M108 72 Q120 65, 132 72" stroke="#4A2800" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Mouth (confident smirk) -->
+  <path d="M82 105 Q100 118, 118 105" stroke="#C47A3A" stroke-width="3" stroke-linecap="round" fill="none"/>
+
+  <!-- Arms -->
+  <ellipse cx="45" cy="165" rx="18" ry="24" fill="#7B52C7" transform="rotate(-15 45 165)"/>
+  <ellipse cx="155" cy="165" rx="18" ry="24" fill="#7B52C7" transform="rotate(15 155 165)"/>
+
+  <!-- Hands -->
+  <circle cx="38" cy="182" r="10" fill="#FFDEAB"/>
+  <circle cx="162" cy="182" r="10" fill="#FFDEAB"/>
+
+  <!-- Weapon (book/Buch) -->
+  <rect x="148" y="172" width="30" height="22" rx="3" fill="#E74C3C" transform="rotate(15 163 183)"/>
+  <rect x="151" y="175" width="24" height="16" rx="2" fill="#F5F5DC" transform="rotate(15 163 183)"/>
+  <text x="156" y="188" font-size="8" font-weight="bold" fill="#333" transform="rotate(15 163 183)">DE</text>
+
+  <!-- Legs -->
+  <rect x="72" y="218" width="22" height="18" rx="8" fill="#5B3E96"/>
+  <rect x="106" y="218" width="22" height="18" rx="8" fill="#5B3E96"/>
+
+  <!-- Shoes -->
+  <ellipse cx="83" cy="236" rx="16" ry="6" fill="#333"/>
+  <ellipse cx="117" cy="236" rx="16" ry="6" fill="#333"/>
+</svg>
