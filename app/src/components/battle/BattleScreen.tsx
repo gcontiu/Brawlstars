@@ -14,6 +14,7 @@ import { rollStarDrop } from '../../engine/starDropEngine';
 import type { StarDrop } from '../../engine/starDropEngine';
 import { playTap, playWrong, playVictory, playDefeat, playCountdown, playCoinDrop, playCorrectJuice, playAlmostJuice } from '../../engine/audioEngine';
 import { StarDropOverlay } from './StarDropOverlay';
+import { analytics } from '../../engine/analytics';
 import type { MatchType } from '../../types';
 import type { GameMode } from '../lobby/GameModeSelect';
 
@@ -66,6 +67,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     const matchTypes: MatchType[] = shuffled.map(() => pickMatchType());
     battle.startBattle(shuffled);
     useBattleStore.setState({ matchTypes });
+    analytics.battleStarted(brawlerStore.activeBrawlerId, gameMode);
   }, []);
 
   // Countdown
@@ -141,6 +143,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     if (revengeCorrect > 0) quests.updateProgress('revenge_rounds', revengeCorrect);
     quests.updateProgress('consecutive_battles', 1);
 
+    analytics.battleCompleted(brawlerStore.activeBrawlerId, gameMode, correct, total);
     setRewardsApplied(true);
   }, [battle.phase, rewardsApplied]);
 
@@ -210,6 +213,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
       setCombo(0);
       playWrong();
       setWaitingForContinue(true);
+      analytics.wordWrong(word.id, word.german, matchType);
     }
   }, [answer, selectedArticle, advanceRound]);
 
@@ -219,7 +223,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
       <div className="h-full flex flex-col bg-gradient-to-b from-[#1a1a4e] to-[#0a0a1a]">
         <div className="flex items-center px-4 pt-4">
           <button
-            onClick={() => { battle.reset(); onBack(); }}
+            onClick={() => { analytics.battleAbandoned(brawlerStore.activeBrawlerId, battle.currentIndex); battle.reset(); onBack(); }}
             className="flex items-center gap-1.5 text-gray-400 active:text-white transition-colors"
           >
             <span className="text-xl">‹</span>

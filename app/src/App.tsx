@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { analytics } from './engine/analytics';
 import { LobbyScreen } from './components/lobby/LobbyScreen';
 import { GameModeSelect } from './components/lobby/GameModeSelect';
 import type { GameMode } from './components/lobby/GameModeSelect';
@@ -15,6 +16,8 @@ type Screen = 'lobby' | 'mode-select' | 'battle' | 'shop' | 'brawlers' | 'trophy
 function App() {
   const [screen, setScreen] = useState<Screen>('lobby');
   const [gameMode, setGameMode] = useState<GameMode>('mix');
+
+  useEffect(() => { analytics.screenView(screen); }, [screen]);
   const [showQuestPanel, setShowQuestPanel] = useState(false);
   const [unlockTier, setUnlockTier] = useState<'plus' | 'premium'>('plus');
 

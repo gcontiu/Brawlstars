@@ -8,6 +8,7 @@ import { UPGRADE_COSTS } from '../../types';
 import { vocabulary } from '../../data/vocabulary';
 import { getUnlockedWordCount } from '../../engine/trophyCalculator';
 import { playTap, playLevelUp, playUnlock } from '../../engine/audioEngine';
+import { analytics } from '../../engine/analytics';
 
 interface Props {
   onBack: () => void;
@@ -41,6 +42,7 @@ export function BrawlersScreen({ onBack }: Props) {
 
   function handleUpgrade() {
     if (!isUnlocked || !canAfford) return;
+    analytics.upgradeClicked(selectedId, selectedProgress.level);
     const ok = brawlerStore.upgrade(selectedId);
     if (ok) playLevelUp();
   }
