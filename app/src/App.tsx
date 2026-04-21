@@ -3,7 +3,6 @@ import { LobbyScreen } from './components/lobby/LobbyScreen';
 import { GameModeSelect } from './components/lobby/GameModeSelect';
 import type { GameMode } from './components/lobby/GameModeSelect';
 import { BattleScreen } from './components/battle/BattleScreen';
-import { WordListScreen } from './components/lobby/WordListScreen';
 import { ShopScreen } from './components/shop/ShopScreen';
 import { BrawlersScreen } from './components/brawlers/BrawlersScreen';
 import { TrophyRoadScreen } from './components/lobby/TrophyRoadScreen';
@@ -11,7 +10,7 @@ import { QuestPanel } from './components/lobby/QuestPanel';
 import { BrawlPassScreen } from './components/lobby/BrawlPassScreen';
 import { UnlockTestScreen } from './components/battle/UnlockTestScreen';
 
-type Screen = 'lobby' | 'mode-select' | 'battle' | 'words' | 'shop' | 'brawlers' | 'trophy-road' | 'brawl-pass' | 'unlock-test';
+type Screen = 'lobby' | 'mode-select' | 'battle' | 'shop' | 'brawlers' | 'trophy-road' | 'brawl-pass' | 'unlock-test';
 
 function App() {
   const [screen, setScreen] = useState<Screen>('lobby');
@@ -23,8 +22,8 @@ function App() {
     <div className="mx-auto max-w-[430px] h-[100dvh] bg-brawl-bg relative overflow-hidden">
       {screen === 'lobby' && (
         <LobbyScreen
-          onPlay={() => setScreen('mode-select')}
-          onWords={() => setScreen('words')}
+          onPlay={() => setScreen('battle')}
+          onGameModes={() => setScreen('mode-select')}
           onShop={() => setScreen('shop')}
           onBrawlers={() => setScreen('brawlers')}
           onTrophyRoad={() => setScreen('trophy-road')}
@@ -42,6 +41,7 @@ function App() {
             setScreen('battle');
           }}
           onBack={() => setScreen('lobby')}
+          currentMode={gameMode}
         />
       )}
       {screen === 'battle' && (
@@ -49,9 +49,6 @@ function App() {
           gameMode={gameMode}
           onBack={() => setScreen('lobby')}
         />
-      )}
-      {screen === 'words' && (
-        <WordListScreen onBack={() => setScreen('lobby')} />
       )}
       {screen === 'shop' && (
         <ShopScreen onBack={() => setScreen('lobby')} />

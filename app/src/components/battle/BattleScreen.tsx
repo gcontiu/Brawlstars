@@ -4,9 +4,16 @@ import { usePlayerStore } from '../../stores/usePlayerStore';
 import { useEconomyStore } from '../../stores/useEconomyStore';
 import { useQuestStore } from '../../stores/useQuestStore';
 import { useBrawlPassStore } from '../../stores/useBrawlPassStore';
+import { useBrawlerStore } from '../../stores/useBrawlerStore';
 import { vocabulary } from '../../data/vocabulary';
+import { getBrawlerDef } from '../../data/brawlerDefs';
 import { evaluateRound, XP_PER_BATTLE } from '../../engine/battleEngine';
+import type { EvalResult } from '../../engine/battleEngine';
 import { calculateTrophies, getUnlockedWordCount } from '../../engine/trophyCalculator';
+import { rollStarDrop } from '../../engine/starDropEngine';
+import type { StarDrop } from '../../engine/starDropEngine';
+import { playTap, playWrong, playVictory, playDefeat, playCountdown, playCoinDrop, playCorrectJuice, playAlmostJuice } from '../../engine/audioEngine';
+import { StarDropOverlay } from './StarDropOverlay';
 import type { MatchType } from '../../types';
 import type { GameMode } from '../lobby/GameModeSelect';
 
@@ -19,14 +26,21 @@ export function BattleScreen({ onBack, gameMode }: Props) {
   const battle = useBattleStore();
   const player = usePlayerStore();
   const economy = useEconomyStore();
+  const brawlerStore = useBrawlerStore();
 
   const [timeLeft, setTimeLeft] = useState(20);
   const [answer, setAnswer] = useState('');
   const [selectedArticle, setSelectedArticle] = useState<'der' | 'die' | 'das' | null>(null);
-  const [showFeedback, setShowFeedback] = useState<{ correct: boolean; correctAnswer: string } | null>(null);
+  const [showFeedback, setShowFeedback] = useState<{ result: EvalResult; correctAnswer: string } | null>(null);
   const [countdown, setCountdown] = useState(3);
   const [rewardsApplied, setRewardsApplied] = useState(false);
   const [waitingForContinue, setWaitingForContinue] = useState(false);
+  const [starDrop, setStarDrop] = useState<StarDrop | null>(null);
+  const [combo, setCombo] = useState(0);
+  const [isShaking, setIsShaking] = useState(false);
+  const [showParticles, setShowParticles] = useState(false);
+  const [showFlash, setShowFlash] = useState(false);
+  const [comboKey, setComboKey] = useState(0);
 
   const inputRef = useRef<HTMLInputElement | undefined>(undefined);
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
@@ -34,33 +48,31 @@ export function BattleScreen({ onBack, gameMode }: Props) {
   const currentWord = battle.words[battle.currentIndex];
   const currentMatchType = battle.matchTypes[battle.currentIndex];
 
-  // Derive a MatchType from gameMode (for non-mix modes)
   function pickMatchType(): MatchType {
     if (gameMode === 'DE_TO_RO') return 'DE_TO_RO';
     if (gameMode === 'RO_TO_DE') return 'RO_TO_DE';
     return Math.random() > 0.5 ? 'DE_TO_RO' : 'RO_TO_DE';
   }
 
-  // Start battle on mount
+  // Build battle pool filtered by active brawler
   useEffect(() => {
-    const trophies = player.trophies;
-    const unlocked = getUnlockedWordCount(trophies);
-    const pool = vocabulary.slice(0, unlocked);
+    const activeBrawlerId = brawlerStore.activeBrawlerId;
+    const activeDef = getBrawlerDef(activeBrawlerId);
+    const brawlerTrophies = brawlerStore.getProgress(activeBrawlerId).trophies;
+    const unlocked = getUnlockedWordCount(brawlerTrophies);
+    const filteredVocab = vocabulary.filter((w) => activeDef.categories.includes(w.category));
+    const pool = filteredVocab.slice(0, Math.min(unlocked, filteredVocab.length));
     const shuffled = [...pool].sort(() => Math.random() - 0.5).slice(0, 10);
-    // Override matchTypes based on gameMode
     const matchTypes: MatchType[] = shuffled.map(() => pickMatchType());
     battle.startBattle(shuffled);
-    // Patch the matchTypes in the store after startBattle sets random ones
     useBattleStore.setState({ matchTypes });
   }, []);
 
   // Countdown
   useEffect(() => {
     if (battle.phase !== 'countdown') return;
-    if (countdown <= 0) {
-      battle.setPhase('playing');
-      return;
-    }
+    if (countdown <= 0) { battle.setPhase('playing'); return; }
+    playCountdown(countdown);
     const t = setTimeout(() => setCountdown((c) => c - 1), 1000);
     return () => clearTimeout(t);
   }, [battle.phase, countdown]);
@@ -76,18 +88,14 @@ export function BattleScreen({ onBack, gameMode }: Props) {
 
     timerRef.current = setInterval(() => {
       setTimeLeft((t) => {
-        if (t <= 1) {
-          submitAnswer(true);
-          return 0;
-        }
+        if (t <= 1) { submitAnswer(true); return 0; }
         return t - 1;
       });
     }, 1000);
-
     return () => clearInterval(timerRef.current);
   }, [battle.phase, battle.currentIndex]);
 
-  // Apply rewards when entering results phase
+  // Apply rewards on results
   useEffect(() => {
     if (battle.phase !== 'results' || rewardsApplied) return;
 
@@ -101,6 +109,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     player.addXP(XP_PER_BATTLE);
     player.updateTrophies(trophyDelta);
     player.incrementBattles();
+    brawlerStore.addTrophies(brawlerStore.activeBrawlerId, trophyDelta);
 
     const ppEarned = Math.floor(successRate / 20);
     let gemsEarned = 0;
@@ -108,8 +117,12 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     if (isWin) {
       player.incrementWinStreak();
       economy.addCoins(10 + Math.floor(successRate / 10));
+      playCoinDrop();
+      // Roll star drop on win
+      setStarDrop(rollStarDrop());
     } else {
       player.resetWinStreak();
+      playDefeat();
     }
 
     if (ppEarned > 0) economy.addPowerPoints(ppEarned);
@@ -117,10 +130,9 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     if (successRate === 100) { gemsEarned += 2; economy.addCredits(5); }
     if (gemsEarned > 0) economy.addGems(gemsEarned);
 
-    // Brawl Pass XP
-    useBrawlPassStore.getState().addXP(XP_PER_BATTLE);
+    if (isWin) setTimeout(playVictory, 200);
 
-    // Quest progress
+    useBrawlPassStore.getState().addXP(XP_PER_BATTLE);
     const quests = useQuestStore.getState();
     if (isWin) quests.updateProgress('win_battles', 1);
     quests.updateProgress('correct_words', correct);
@@ -132,13 +144,21 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     setRewardsApplied(true);
   }, [battle.phase, rewardsApplied]);
 
+  function triggerJuice() {
+    setIsShaking(true);
+    setShowParticles(true);
+    setShowFlash(true);
+    setTimeout(() => setIsShaking(false), 300);
+    setTimeout(() => setShowParticles(false), 520);
+    setTimeout(() => setShowFlash(false), 420);
+  }
+
   const advanceRound = useCallback(() => {
     setShowFeedback(null);
     setWaitingForContinue(false);
     const s = useBattleStore.getState();
     const hasNext = s.nextRound();
     if (!hasNext) {
-      // Also patch matchTypes for revenge round if needed
       const revengeQueue = s.revengeQueue;
       if (revengeQueue.length > 0) {
         const revengeTypes: MatchType[] = revengeQueue.map(() => pickMatchType());
@@ -161,26 +181,34 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     const matchType = store.matchTypes[store.currentIndex];
     if (!word) return;
 
-    const isCorrect = timeout
-      ? false
+    const evalResult = timeout
+      ? 'wrong' as EvalResult
       : evaluateRound(word, matchType, answer, selectedArticle ?? undefined);
 
+    const isCorrect = evalResult !== 'wrong';
     store.recordResult(isCorrect);
 
     const correctAnswer = matchType === 'DE_TO_RO'
       ? `${word.article} → ${word.romanian}`
       : `${word.article} ${word.german}`;
 
-    setShowFeedback({ correct: isCorrect, correctAnswer });
+    setShowFeedback({ result: evalResult, correctAnswer });
     store.setPhase('feedback');
 
-    if (isCorrect) {
-      // Auto-advance after 1 second on correct
-      setTimeout(() => {
-        advanceRound();
-      }, 1000);
+    if (evalResult === 'correct') {
+      const newCombo = combo + 1;
+      setCombo(newCombo);
+      setComboKey((k) => k + 1);
+      playCorrectJuice(newCombo - 1);
+      triggerJuice();
+      setTimeout(advanceRound, 1000);
+    } else if (evalResult === 'almost') {
+      setCombo(0);
+      playAlmostJuice();
+      setTimeout(advanceRound, 1800);
     } else {
-      // Wait for user to tap "CONTINUĂ" on wrong answer
+      setCombo(0);
+      playWrong();
       setWaitingForContinue(true);
     }
   }, [answer, selectedArticle, advanceRound]);
@@ -189,7 +217,6 @@ export function BattleScreen({ onBack, gameMode }: Props) {
   if (battle.phase === 'countdown') {
     return (
       <div className="h-full flex flex-col bg-gradient-to-b from-[#1a1a4e] to-[#0a0a1a]">
-        {/* Exit button — only visible during countdown */}
         <div className="flex items-center px-4 pt-4">
           <button
             onClick={() => { battle.reset(); onBack(); }}
@@ -199,7 +226,6 @@ export function BattleScreen({ onBack, gameMode }: Props) {
             <span className="font-body text-sm">Ieși</span>
           </button>
         </div>
-
         <div className="flex-1 flex items-center justify-center">
           <div className="text-center">
             <p className="font-display text-7xl text-brawl-yellow animate-pulse">
@@ -209,6 +235,14 @@ export function BattleScreen({ onBack, gameMode }: Props) {
             <p className="text-xs text-gray-600 mt-2 font-body">
               {gameMode === 'DE_TO_RO' ? '🇩🇪 → 🇷🇴' : gameMode === 'RO_TO_DE' ? '🇷🇴 → 🇩🇪' : '🔀 Mix'}
             </p>
+            {(() => {
+              const def = getBrawlerDef(brawlerStore.activeBrawlerId);
+              return (
+                <p className="text-xs mt-2 font-body" style={{ color: def.glowColor }}>
+                  {def.name} · {def.theme}
+                </p>
+              );
+            })()}
           </div>
         </div>
       </div>
@@ -225,8 +259,13 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     const isWin = successRate > 50;
 
     return (
-      <div className="h-full flex flex-col items-center justify-center bg-gradient-to-b from-[#1a1a4e] to-[#0a0a1a] px-6">
-        <p className="font-display text-4xl mb-2 text-white">
+      <div className="h-full flex flex-col items-center justify-center bg-gradient-to-b from-[#1a1a4e] to-[#0a0a1a] px-6 relative">
+        {/* Star Drop overlay */}
+        {starDrop && (
+          <StarDropOverlay drop={starDrop} onClose={() => setStarDrop(null)} />
+        )}
+
+        <p className="font-display text-4xl mb-2 text-white animate-bounce-in">
           {isWin ? 'VICTORIE!' : 'DEFEAT'}
         </p>
         <p className={`font-display text-6xl ${isWin ? 'text-brawl-yellow' : 'text-brawl-red'}`}>
@@ -248,9 +287,12 @@ export function BattleScreen({ onBack, gameMode }: Props) {
           {successRate >= 80 && (
             <ResultRow label="Gems" value={`+${successRate === 100 ? 3 : 1}`} color="text-purple-400" />
           )}
+          {isWin && (
+            <ResultRow label="Star Drop" value="⭐ Disponibil!" color="text-brawl-yellow" />
+          )}
         </div>
 
-        {results.filter((r) => !r.isCorrect).length > 0 && (
+        {results.filter((r) => !r.isCorrect && !r.isRevenge).length > 0 && (
           <div className="mt-6 w-full max-w-xs">
             <p className="text-sm text-gray-400 mb-2 font-body">De repetat:</p>
             {results
@@ -264,7 +306,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
         )}
 
         <button
-          onClick={() => { battle.reset(); onBack(); }}
+          onClick={() => { playTap(); battle.reset(); onBack(); }}
           className="mt-8 px-8 py-3 rounded-2xl bg-gradient-to-b from-brawl-yellow to-brawl-orange
             font-display text-xl text-black active:scale-95 transition-transform
             border-2 border-yellow-300/80 shadow-lg shadow-brawl-orange/40"
@@ -279,11 +321,19 @@ export function BattleScreen({ onBack, gameMode }: Props) {
   if (!currentWord) return null;
 
   const isTypeA = currentMatchType === 'DE_TO_RO';
-  const progress = ((battle.currentIndex) / battle.words.length) * 100;
+  const progress = (battle.currentIndex / battle.words.length) * 100;
+  const comboColor = combo >= 8 ? 'text-purple-400' : combo >= 5 ? 'text-brawl-red' : 'text-brawl-orange';
 
   return (
-    <div className="h-full flex flex-col bg-gradient-to-b from-[#1a1a4e] to-[#0a0a1a]">
-      {/* Top bar — NO exit button during gameplay */}
+    <div
+      className={`h-full flex flex-col bg-gradient-to-b from-[#1a1a4e] to-[#0a0a1a] relative overflow-hidden ${isShaking ? 'animate-screen-shake' : ''}`}
+    >
+      {/* Green flash overlay on correct */}
+      {showFlash && (
+        <div className="absolute inset-0 z-20 pointer-events-none bg-green-400 animate-correct-flash" />
+      )}
+
+      {/* Progress bar */}
       <div className="px-4 pt-3 pb-2 flex items-center gap-3">
         <div className="flex-1 h-2 bg-brawl-card rounded-full overflow-hidden">
           <div
@@ -291,16 +341,13 @@ export function BattleScreen({ onBack, gameMode }: Props) {
             style={{ width: `${progress}%` }}
           />
         </div>
-        <span className="text-sm text-gray-400 font-body">
-          {battle.currentIndex + 1}/{battle.words.length}
-        </span>
+        <span className="text-sm text-gray-400 font-body">{battle.currentIndex + 1}/{battle.words.length}</span>
       </div>
 
       {/* Timer */}
       <div className="flex justify-center my-4">
         <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center font-display text-2xl
-          ${timeLeft <= 5 ? 'border-brawl-red text-brawl-red animate-pulse' : 'border-brawl-yellow text-brawl-yellow'}`}
-        >
+          ${timeLeft <= 5 ? 'border-brawl-red text-brawl-red animate-pulse' : 'border-brawl-yellow text-brawl-yellow'}`}>
           {timeLeft}
         </div>
       </div>
@@ -313,27 +360,55 @@ export function BattleScreen({ onBack, gameMode }: Props) {
         </span>
       </div>
 
-      {/* Word Display */}
-      <div className="flex-1 flex flex-col items-center justify-center px-6">
-        <p className="font-display text-3xl text-white text-center mb-8">
-          {isTypeA ? currentWord.german : currentWord.romanian}
-        </p>
+      {/* Word display */}
+      <div className="flex-1 flex flex-col items-center justify-center px-6 relative">
 
-        {/* Article buttons (Type A only) */}
+        {/* Combo counter */}
+        {combo >= 3 && (
+          <div
+            key={comboKey}
+            className={`absolute top-0 font-display text-2xl tracking-wider animate-combo-pop ${comboColor}`}
+            style={{ textShadow: combo >= 5 ? '0 0 16px currentColor' : 'none' }}
+          >
+            {combo >= 8 ? '🔥' : combo >= 5 ? '⚡' : '✨'} COMBO ×{combo}
+          </div>
+        )}
+
+        {/* Particle burst origin */}
+        <div className="relative">
+          {showParticles && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+              {(['n','ne','e','se','s','sw','w','nw'] as const).map((dir, i) => (
+                <div
+                  key={dir}
+                  className={`particle particle-${dir}`}
+                  style={{
+                    background: i % 3 === 0 ? '#F7D020' : i % 3 === 1 ? '#4CAF50' : '#00ffcc',
+                    width: combo >= 5 ? '14px' : '10px',
+                    height: combo >= 5 ? '14px' : '10px',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          <p className="font-display text-3xl text-white text-center mb-8 relative z-0">
+            {isTypeA ? currentWord.german : currentWord.romanian}
+          </p>
+        </div>
+
+        {/* Article buttons (Type A) */}
         {isTypeA && (
           <div className="flex gap-3 mb-6">
             {(['der', 'die', 'das'] as const).map((art) => (
               <button
                 key={art}
-                onClick={() => setSelectedArticle(art)}
+                onClick={() => { playTap(); setSelectedArticle(art); }}
                 disabled={!!showFeedback}
                 className={`px-6 py-3 rounded-xl font-display text-lg transition-all
                   ${selectedArticle === art
-                    ? art === 'der'
-                      ? 'bg-blue-500 text-white scale-105'
-                      : art === 'die'
-                        ? 'bg-red-500 text-white scale-105'
-                        : 'bg-green-500 text-white scale-105'
+                    ? art === 'der' ? 'bg-blue-500 text-white scale-105'
+                    : art === 'die' ? 'bg-red-500 text-white scale-105'
+                    : 'bg-green-500 text-white scale-105'
                     : 'bg-brawl-card text-gray-300 border border-brawl-border'
                   }`}
               >
@@ -350,7 +425,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
             type="text"
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !showFeedback && submitAnswer()}
+            onKeyDown={(e) => e.key === 'Enter' && !showFeedback && (!isTypeA || selectedArticle) && submitAnswer()}
             disabled={!!showFeedback}
             placeholder={isTypeA ? 'Traducere în română...' : 'Scrie în germană cu articol...'}
             className="w-full px-4 py-3 rounded-xl bg-brawl-card border border-brawl-border text-white
@@ -360,7 +435,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
           />
         </div>
 
-        {/* Submit button */}
+        {/* Submit */}
         {!showFeedback && (
           <button
             onClick={() => submitAnswer()}
@@ -373,27 +448,33 @@ export function BattleScreen({ onBack, gameMode }: Props) {
           </button>
         )}
 
-        {/* Feedback overlay */}
+        {/* Feedback */}
         {showFeedback && (
-          <div className={`mt-4 px-6 py-4 rounded-xl text-center w-full max-w-xs ${
-            showFeedback.correct
+          <div className={`mt-4 px-6 py-4 rounded-xl text-center w-full max-w-xs animate-bounce-in ${
+            showFeedback.result === 'correct'
               ? 'bg-green-500/20 border border-green-500/50'
+              : showFeedback.result === 'almost'
+              ? 'bg-yellow-500/20 border border-yellow-500/50'
               : 'bg-red-500/20 border border-red-500/50'
           }`}>
-            <p className={`font-display text-2xl ${showFeedback.correct ? 'text-green-400' : 'text-red-400'}`}>
-              {showFeedback.correct ? 'CORECT!' : 'GREȘIT!'}
+            <p className={`font-display text-2xl ${
+              showFeedback.result === 'correct' ? 'text-green-400'
+              : showFeedback.result === 'almost' ? 'text-yellow-400'
+              : 'text-red-400'
+            }`}>
+              {showFeedback.result === 'correct' ? 'CORECT!'
+               : showFeedback.result === 'almost' ? '🟡 APROAPE!'
+               : 'GREȘIT!'}
             </p>
-            {!showFeedback.correct && (
+            {showFeedback.result !== 'correct' && (
               <p className="text-gray-300 mt-2 text-sm font-body">
-                Răspuns corect:{' '}
+                {showFeedback.result === 'almost' ? 'Corect era: ' : 'Răspuns corect: '}
                 <span className="text-white font-bold">{showFeedback.correctAnswer}</span>
               </p>
             )}
-
-            {/* Manual advance button — only on wrong answer */}
-            {waitingForContinue && !showFeedback.correct && (
+            {waitingForContinue && showFeedback.result === 'wrong' && (
               <button
-                onClick={advanceRound}
+                onClick={() => { playTap(); advanceRound(); }}
                 className="mt-4 w-full px-6 py-2.5 rounded-xl bg-gradient-to-r from-brawl-orange to-brawl-red
                   font-display text-lg text-white active:scale-95 transition-transform
                   border border-orange-400/50 shadow-md"

@@ -35,3 +35,134 @@ input {
   user-select: text;
   -webkit-user-select: text;
 }
+
+/* Brawler idle float */
+@keyframes brawler-idle {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+.animate-brawler-idle {
+  animation: brawler-idle 2.4s ease-in-out infinite;
+}
+
+/* Bounce in */
+@keyframes bounce-in {
+  0%   { transform: scale(0.5); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  80%  { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.animate-bounce-in {
+  animation: bounce-in 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Star drop shake */
+@keyframes sd-shake {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  20% { transform: rotate(-8deg) scale(1.05); }
+  40% { transform: rotate(8deg) scale(1.08); }
+  60% { transform: rotate(-6deg) scale(1.05); }
+  80% { transform: rotate(6deg) scale(1.03); }
+}
+.animate-sd-shake {
+  animation: sd-shake 0.6s ease-in-out;
+}
+
+/* Counter roll (applied via JS inline style) */
+@keyframes count-flash {
+  0%   { transform: scale(1.4); opacity: 0.6; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.animate-count-flash {
+  animation: count-flash 0.25s ease-out;
+}
+
+/* Slide up */
+@keyframes slide-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+.animate-slide-up {
+  animation: slide-up 0.3s ease-out both;
+}
+
+/* Glow pulse */
+@keyframes glow-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%       { opacity: 0.9; }
+}
+.animate-glow-pulse {
+  animation: glow-pulse 1.8s ease-in-out infinite;
+}
+
+/* Play button breathe */
+@keyframes play-breathe {
+  0%, 100% { box-shadow: 0 0 16px 4px rgba(247,208,32,0.4); }
+  50%       { box-shadow: 0 0 32px 10px rgba(247,208,32,0.7); }
+}
+.animate-play-breathe {
+  animation: play-breathe 2s ease-in-out infinite;
+}
+
+/* Screen shake on correct answer */
+@keyframes screen-shake {
+  0%   { transform: translate(0, 0); }
+  15%  { transform: translate(-4px, -3px); }
+  30%  { transform: translate(4px, 3px); }
+  45%  { transform: translate(-3px, 2px); }
+  60%  { transform: translate(3px, -2px); }
+  75%  { transform: translate(-2px, 1px); }
+  90%  { transform: translate(2px, -1px); }
+  100% { transform: translate(0, 0); }
+}
+.animate-screen-shake {
+  animation: screen-shake 0.28s ease-out;
+}
+
+/* Particle burst */
+@keyframes particle-n  { to { transform: translate(0, -55px)  scale(0); opacity: 0; } }
+@keyframes particle-ne { to { transform: translate(40px, -40px) scale(0); opacity: 0; } }
+@keyframes particle-e  { to { transform: translate(55px, 0)   scale(0); opacity: 0; } }
+@keyframes particle-se { to { transform: translate(40px, 40px) scale(0); opacity: 0; } }
+@keyframes particle-s  { to { transform: translate(0, 55px)   scale(0); opacity: 0; } }
+@keyframes particle-sw { to { transform: translate(-40px, 40px) scale(0); opacity: 0; } }
+@keyframes particle-w  { to { transform: translate(-55px, 0)  scale(0); opacity: 0; } }
+@keyframes particle-nw { to { transform: translate(-40px, -40px) scale(0); opacity: 0; } }
+
+.particle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  animation-duration: 0.5s;
+  animation-timing-function: ease-out;
+  animation-fill-mode: forwards;
+}
+.particle-n  { animation-name: particle-n;  }
+.particle-ne { animation-name: particle-ne; }
+.particle-e  { animation-name: particle-e;  }
+.particle-se { animation-name: particle-se; }
+.particle-s  { animation-name: particle-s;  }
+.particle-sw { animation-name: particle-sw; }
+.particle-w  { animation-name: particle-w;  }
+.particle-nw { animation-name: particle-nw; }
+
+/* Combo pop */
+@keyframes combo-pop {
+  0%   { transform: scale(0.4) translateY(-10px); opacity: 0; }
+  50%  { transform: scale(1.3) translateY(0); opacity: 1; }
+  70%  { transform: scale(0.9); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.animate-combo-pop {
+  animation: combo-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Green flash overlay */
+@keyframes correct-flash {
+  0%   { opacity: 0.25; }
+  100% { opacity: 0; }
+}
+.animate-correct-flash {
+  animation: correct-flash 0.4s ease-out forwards;
+}

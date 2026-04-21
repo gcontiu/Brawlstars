@@ -36,11 +36,13 @@ interface BrawlPassStore {
   level: number;
   xpInLevel: number;
   tier: 'free' | 'plus' | 'premium';
+  unlockedTiers: ('free' | 'plus' | 'premium')[];
   claimedRewards: number[];
   addXP: (amount: number) => void;
   claimReward: (level: number) => BrawlPassReward | null;
   getRewardForLevel: (level: number) => BrawlPassReward;
   unlockTier: (tier: 'plus' | 'premium') => void;
+  switchTier: (tier: 'free' | 'plus' | 'premium') => void;
 }
 
 const XP_PER_LEVEL = 100;
@@ -52,6 +54,7 @@ export const useBrawlPassStore = create<BrawlPassStore>()(
       level: 1,
       xpInLevel: 0,
       tier: 'free',
+      unlockedTiers: ['free'],
       claimedRewards: [],
 
       addXP: (amount: number) => {
@@ -88,7 +91,19 @@ export const useBrawlPassStore = create<BrawlPassStore>()(
       },
 
       unlockTier: (tier: 'plus' | 'premium') => {
-        set({ tier });
+        set((state) => ({
+          tier,
+          unlockedTiers: state.unlockedTiers.includes(tier)
+            ? state.unlockedTiers
+            : [...state.unlockedTiers, tier],
+        }));
+      },
+
+      switchTier: (tier: 'free' | 'plus' | 'premium') => {
+        const { unlockedTiers } = get();
+        if (unlockedTiers.includes(tier)) {
+          set({ tier });
+        }
       },
     }),
     { name: 'german-brawl-brawlpass' }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useBrawlPassStore, BRAWL_PASS_REWARDS } from '../../stores/useBrawlPassStore';
 import { useEconomyStore } from '../../stores/useEconomyStore';
+import { playTap, playCoinDrop, playUnlock } from '../../engine/audioEngine';
 import type { BrawlPassReward } from '../../stores/useBrawlPassStore';
 
 interface Props {
@@ -20,8 +21,24 @@ export function BrawlPassScreen({ onBack, onUnlockTest }: Props) {
     if (reward.gems > 0) economy.addGems(reward.gems);
     if (reward.powerPoints > 0) economy.addPowerPoints(reward.powerPoints);
     if (reward.bling > 0) economy.addBling(reward.bling);
+    playCoinDrop();
     setClaimedFlash(level);
     setTimeout(() => setClaimedFlash(null), 800);
+  }
+
+  function handleTierClick(tier: 'free' | 'plus' | 'premium') {
+    const isUnlocked = bp.unlockedTiers.includes(tier);
+    if (isUnlocked) {
+      if (bp.tier !== tier) {
+        playUnlock();
+        bp.switchTier(tier);
+      } else {
+        playTap();
+      }
+    } else {
+      playTap();
+      if (tier !== 'free') onUnlockTest(tier);
+    }
   }
 
   function formatReward(r: BrawlPassReward): string {
@@ -38,7 +55,7 @@ export function BrawlPassScreen({ onBack, onUnlockTest }: Props) {
       {/* Header */}
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <button
-          onClick={onBack}
+          onClick={() => { playTap(); onBack(); }}
           className="w-10 h-10 rounded-full bg-brawl-card border border-brawl-border flex items-center justify-center active:scale-95"
         >
           ←
@@ -54,20 +71,26 @@ export function BrawlPassScreen({ onBack, onUnlockTest }: Props) {
 
       {/* Tier badges */}
       <div className="flex gap-2 px-4 mb-3">
-        <TierBadge label="Free" active={true} color="bg-gray-600" />
+        <TierBadge
+          label="Free"
+          active={bp.tier === 'free'}
+          color="bg-gray-600"
+          unlocked={true}
+          onClick={() => handleTierClick('free')}
+        />
         <TierBadge
           label="Plus"
-          active={bp.tier === 'plus' || bp.tier === 'premium'}
+          active={bp.tier === 'plus'}
           color="bg-blue-600"
-          locked={bp.tier === 'free'}
-          onUnlock={() => onUnlockTest('plus')}
+          unlocked={bp.unlockedTiers.includes('plus')}
+          onClick={() => handleTierClick('plus')}
         />
         <TierBadge
           label="Premium"
           active={bp.tier === 'premium'}
           color="bg-purple-600"
-          locked={bp.tier !== 'premium'}
-          onUnlock={() => onUnlockTest('premium')}
+          unlocked={bp.unlockedTiers.includes('premium')}
+          onClick={() => handleTierClick('premium')}
         />
       </div>
 
@@ -144,23 +167,26 @@ export function BrawlPassScreen({ onBack, onUnlockTest }: Props) {
   );
 }
 
-function TierBadge({ label, active, color, locked, onUnlock }: {
+function TierBadge({ label, active, color, unlocked, onClick }: {
   label: string;
   active: boolean;
   color: string;
-  locked?: boolean;
-  onUnlock?: () => void;
+  unlocked: boolean;
+  onClick: () => void;
 }) {
   return (
     <button
-      onClick={locked ? onUnlock : undefined}
-      className={`flex-1 py-1.5 rounded-lg font-display text-xs text-center transition-all ${
+      onClick={onClick}
+      className={`flex-1 py-1.5 rounded-lg font-display text-xs text-center transition-all active:scale-95 ${
         active
-          ? `${color} text-white`
+          ? `${color} text-white ring-2 ring-white/30`
+          : unlocked
+          ? `${color}/40 text-white border border-white/20`
           : 'bg-black/40 text-gray-500 border border-brawl-border'
-      } ${locked ? 'active:scale-95' : ''}`}
+      }`}
     >
-      {locked && '🔒 '}{label}
+      {!unlocked && '🔒 '}{label}
+      {unlocked && !active && ' ✓'}
     </button>
   );
 }

@@ -6,6 +6,7 @@ export type GameMode = 'DE_TO_RO' | 'RO_TO_DE' | 'mix';
 interface Props {
   onStart: (mode: GameMode) => void;
   onBack: () => void;
+  currentMode?: GameMode;
 }
 
 interface ModeOption {
@@ -44,8 +45,8 @@ const MODES: ModeOption[] = [
   },
 ];
 
-export function GameModeSelect({ onStart, onBack }: Props) {
-  const [selected, setSelected] = useState<GameMode>('mix');
+export function GameModeSelect({ onStart, onBack, currentMode = 'mix' }: Props) {
+  const [selected, setSelected] = useState<GameMode>(currentMode);
 
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-[#12123a] via-[#0e0e2a] to-[#080818] relative overflow-hidden">

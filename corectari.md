@@ -1,16 +1,25 @@
-ecranul principal trebuie sa se apropie mai mult de brawlstars orignal
-- Brawl Pass trebuie sa fie o bara slider care sa arate la ce nivel este
-- butonul de quest sa fie in drepta la Brawl Pass (ambele stanga jos)
-- butonul Play sa fie dreptunghiular
-- ia imagini de brawler de pe internet
+La Brawl Pass 
+- nu se poate accesa modul Plus chiar daca a fost deblocat. Trebuie sa se poata acesa si schimba pe oricare dintre cele deblocate.
+- trebuie adaugate sound effects
 
-Sa se poata alege game mode-ul care il doresti:
-- din germana in romana sau din romana in germana
-- Sa nu se tina cont de diacritice la niciunul dintre battle-uri
+La Trophy Road:
+- Resursele sa ajunga pana la 5000 de trofee.
 
-Cand un raspuns este gresit, utilizatorul sa apese un buton pentru a merge la urmatorul cuvant, sa nu se mearga automat.
+La selectare Brawler:
+- cand apesi pe butonul de select sa te duca automat inapoi la main screen.
 
-In timpul battle-ului sa nu poti sa iesi. adica sa nu apara X-ul din stanga sus.
-Poti sa iesi doar in timpul countdown-ului de dupa apasarea butonului Play.
+Trebuie adaugate imagini pentru fiecare Brawler ( a disparut la Shelly, se vede doar iconita cu text Shelly)
 
-Repara fisierul cuvinte.md si verifica corectitudinea fecarui cuvant
+Pe ecranul principal jos la mijloc sa fie pus buton pt alegerea tipului de battle cu numele "Gamemodes"
+
+Trebuie schimbate la star drop:
+- epic star drop sa primeasca 5 gem-uri si nimic altceva.
+- trebuie schimbate sansele, sa fie o idee mai usor: rare:39%, super rare: 30%, epic: 15%, mythic: 10%, legendary: 5%, adaugam o raritate noua numita Giga: 1%,
+- Giga star drop sa primeasca 25 de gems, 5000 de coins, 3000 Power points, 500 credits, 1000 skin shards. 
+
+XP primit la quest-uri:
+- ajuta la Brawl Pass, nu altundeva.
+
+Daca in timpul battle-ului sa nu se activeze submit daca trebuie articol si utilizatorul nu a selectat niciun articol
+
+Actualizeaza .md relevante cu aceste noi specificatii

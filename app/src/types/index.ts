@@ -4,6 +4,7 @@ export interface VocabWord {
   romanian: string;
   article: 'der' | 'die' | 'das';
   category: string;
+  acceptedAnswers?: string[]; // sinonime acceptate pentru traducerea în română (DE→RO)
 }
 
 export interface PlayerState {
@@ -43,6 +44,18 @@ export interface BattleState {
   correctCount: number;
   totalCount: number;
   isRevengePart: boolean;
+}
+
+export interface BrawlerDef {
+  id: string;
+  name: string;
+  emoji: string;
+  theme: string;
+  categories: string[];
+  colorClass: string;
+  glowColor: string;
+  unlockTrophies: number;
+  image?: string;
 }
 
 export const UPGRADE_COSTS: { level: number; powerPoints: number; coins: number }[] = [

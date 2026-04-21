@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useQuestStore } from '../../stores/useQuestStore';
-import { usePlayerStore } from '../../stores/usePlayerStore';
+import { useBrawlPassStore } from '../../stores/useBrawlPassStore';
 import { useEconomyStore } from '../../stores/useEconomyStore';
 
 interface Props {
@@ -23,7 +23,7 @@ function rollBonus(): BonusResult | null {
 
 export function QuestPanel({ onClose }: Props) {
   const { activeQuests, completedQuestIds, claimQuest } = useQuestStore();
-  const { addXP } = usePlayerStore();
+  const brawlPass = useBrawlPassStore();
   const { addGems, addCoins, addPowerPoints } = useEconomyStore();
   const [claimedBonus, setClaimedBonus] = useState<Record<string, string | null>>({});
   const [justClaimed, setJustClaimed] = useState<Set<string>>(new Set());
@@ -32,7 +32,7 @@ export function QuestPanel({ onClose }: Props) {
     const success = claimQuest(questId);
     if (!success) return;
 
-    addXP(500);
+    brawlPass.addXP(500);
 
     const bonus = rollBonus();
     if (bonus) {
