@@ -85,13 +85,32 @@ Recompensele din Trophy Road se bazează pe **trofee globale** (suma tuturor bra
 ## 4. Progresie: Brawl Pass & Quest-uri
 
 ### Nivele Brawl Pass
-- **Free Pass:** Deblocat implicit. Conține **Coins, Power Points, Credits și Gems**.
+
+Brawl Pass are 30 de nivele. Recompensele per nivel depind de tier-ul activ.
+
+- **Free Pass:** Deblocat implicit.
+  - 🪙 10 Coins/nivel
+  - ⚡ Power Points la fiecare nivel multiplu de 3
+  - 💎 2 Gems la fiecare nivel multiplu de 5
+  - 💎 +5 Gems bonus la nivelele 10, 20, 30 (Milestone)
+
 - **Pass Plus:**
-  - *Deblocare:* Test "Hard" (20 cuvinte, acuratețe >= 95%).
-  - *Premii:* Resurse extra + Blings.
+  - *Deblocare:* Test "Hard" — 20 cuvinte, acuratețe **exactă** >= 95% (doar `correct`, nu `almost`).
+  - *Visual activ:* Banner albastru „⭐ PASS PLUS ACTIV — Recompense duble"; rândurile listei devin albastre.
+  - 🪙 20 Coins/nivel (×2)
+  - ⚡ PP ×2 + 5 bonus per nivel
+  - ✨ 10 Bling/nivel + 10 Bling extra la multipli de 3
+  - 💎 Gems de bază + 1 Gem extra la fiecare nivel multiplu de 5
+
 - **Premium Pass:**
-  - *Deblocare:* Test "Elite" (25 cuvinte, acuratețe 100%).
-  - *Premii:* Resurse duble + Skin-uri exclusive.
+  - *Deblocare:* Test "Elite" — 25 cuvinte, acuratețe **exactă** 100%.
+  - *Visual activ:* Banner violet „💎 PREMIUM PASS ACTIV — Recompense triple"; rândurile listei devin violet.
+  - 🪙 30 Coins/nivel (×3)
+  - ⚡ PP ×3 + 10 bonus per nivel
+  - ✨ 25 Bling/nivel + 25 Bling extra la multipli de 3
+  - 💎 Gems de bază ×2 + 2 Gems extra la fiecare nivel multiplu de 3
+
+**Notă implementare:** Testul de deblocare acceptă doar răspunsuri `correct` (potrivire exactă sau sinonim din `acceptedAnswers`). Răspunsurile `almost` (toleranță Levenshtein) NU sunt considerate corecte în test.
 
 ### Quest-uri
 - **Buton Quest:** Afișează progresul și task-urile active.
@@ -127,14 +146,15 @@ Recompensele din Trophy Road se bazează pe **trofee globale** (suma tuturor bra
 ## 6. Interfața Utilizator (UI Architecture)
 
 ### Lobby (Ecran Principal) — inspirat fidel din Brawl Stars
-- **Top Stânga:** Iconiță **Trophy Road**.
-- **Top Dreapta:** Display resurse (Coins, PP, Bling, Gems).
-- **Centru:** Brawlerul activ (imagine reală de brawler); deasupra lui sunt afișate trofeele și nivelul de putere.
-- **Stânga:** Buton **Shop**, iar sub el butonul **Brawlers**.
-- **Dreapta:** (gol — cuvintele sunt vizibile în ecranul Brawlers, per brawler selectat)
-- **Jos Stânga:** **Brawl Pass** ca bară slider orizontală (arată nivelul curent) + buton **Quest** în dreapta barei.
-- **Jos Centru:** buton **Gamemode** . Userul il va folosi ca sa aleaga jocul. 
-- **Jos Dreapta:** Butonul **"Play"** — dreptunghiular, galben, mare.
+- **Top Stânga:** Iconiță **Trophy Road** (trofee globale).
+- **Top Dreapta:** Display resurse (Coins 🪙, Gems 💎, Bling ✨, PP ⚡, Credits 🎫).
+- **Centru:** Brawlerul activ (imagine reală); animație idle bounce. Deasupra: trofee + nivel. Sub imagine: numele brawlerului și tema vocabular.
+- **Stânga:** Buton **Shop** + buton **Brawlers**.
+- **Dreapta:** Buton **💬 Feedback** — vizibil doar dacă `VITE_FEEDBACK_URL` e setat; deschide Google Form într-un tab nou.
+- **Jos Stânga:** **Brawl Pass** ca bară slider orizontală (nivel curent/30) — click deschide ecranul Brawl Pass.
+- **Jos Centru-Stânga:** Buton **Quest** 📋.
+- **Jos Centru:** Buton **🎮 GAMEMODES** — selectare mod înainte de battle.
+- **Jos Dreapta:** Butonul **▶ PLAY** — galben, animație breathing, mare.
 
 ### Battle UI
 - Design minimalist, timer vizibil.
