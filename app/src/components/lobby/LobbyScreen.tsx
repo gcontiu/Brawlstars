@@ -76,8 +76,10 @@ export function LobbyScreen({ onPlay, onGameModes, onShop, onBrawlers, onTrophyR
           <SideButton icon="🎮" label="Brawlers" onClick={() => { playTap(); onBrawlers(); }} />
         </div>
 
-        {/* Side buttons RIGHT — intentionally empty, words moved to Brawlers screen */}
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3" />
+        {/* Side buttons RIGHT */}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3">
+          <FeedbackButton />
+        </div>
 
         {/* Brawler display */}
         <div className="flex flex-col items-center">
@@ -196,6 +198,24 @@ function ResourcePill({ icon, value, color }: { icon: string; value: number; col
       <span className={`font-bold ${color}`}>{value}</span>
     </div>
   );
+}
+
+function FeedbackButton() {
+  const url = import.meta.env.VITE_FEEDBACK_URL
+  if (!url) return null
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      onClick={() => playTap()}
+      className="flex flex-col items-center gap-0.5 bg-black/60 rounded-xl px-3 py-2
+        border border-brawl-border active:scale-95 transition-transform shadow-md"
+    >
+      <span className="text-xl">💬</span>
+      <span className="text-[10px] text-gray-300 font-body">Feedback</span>
+    </a>
+  )
 }
 
 function SideButton({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {

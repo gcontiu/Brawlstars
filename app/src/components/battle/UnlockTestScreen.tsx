@@ -78,7 +78,7 @@ export function UnlockTestScreen({ tier, onBack, onSuccess }: Props) {
 
     const isCorrect = timeout
       ? false
-      : evaluateRound(word, 'DE_TO_RO', answer, selectedArticle ?? undefined);
+      : !!evaluateRound(word, 'DE_TO_RO', answer, selectedArticle ?? undefined);
 
     if (isCorrect) setCorrectCount((c) => c + 1);
 
