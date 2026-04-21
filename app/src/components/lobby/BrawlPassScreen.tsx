@@ -94,6 +94,20 @@ export function BrawlPassScreen({ onBack, onUnlockTest }: Props) {
         />
       </div>
 
+      {/* Tier banner */}
+      {bp.tier === 'plus' && (
+        <div className="mx-4 mb-2 rounded-xl bg-blue-600/20 border border-blue-500/40 px-4 py-2 flex items-center justify-between">
+          <span className="font-display text-blue-400 text-sm">⭐ PASS PLUS ACTIV</span>
+          <span className="text-xs text-blue-300">Recompense duble</span>
+        </div>
+      )}
+      {bp.tier === 'premium' && (
+        <div className="mx-4 mb-2 rounded-xl bg-purple-600/20 border border-purple-500/40 px-4 py-2 flex items-center justify-between">
+          <span className="font-display text-purple-400 text-sm">💎 PREMIUM PASS ACTIV</span>
+          <span className="text-xs text-purple-300">Recompense triple</span>
+        </div>
+      )}
+
       {/* XP progress bar */}
       <div className="px-4 mb-3">
         <div className="h-3 bg-black/60 rounded-full border border-brawl-border overflow-hidden">
@@ -107,8 +121,9 @@ export function BrawlPassScreen({ onBack, onUnlockTest }: Props) {
       {/* Levels list */}
       <div className="flex-1 overflow-y-auto px-4 pb-4">
         <div className="flex flex-col gap-2">
-          {BRAWL_PASS_REWARDS.map((reward, i) => {
+          {BRAWL_PASS_REWARDS.map((_, i) => {
             const level = i + 1;
+            const reward = bp.getRewardForLevel(level);
             const isUnlocked = level <= bp.level;
             const isClaimed = bp.claimedRewards.includes(level);
             const isCurrent = level === bp.level;
@@ -122,9 +137,13 @@ export function BrawlPassScreen({ onBack, onUnlockTest }: Props) {
                     ? 'bg-green-500/20 border-green-500/50'
                     : isCurrent
                       ? 'bg-brawl-yellow/10 border-brawl-yellow/40'
-                      : isUnlocked
-                        ? 'bg-brawl-card/60 border-brawl-border/50'
-                        : 'bg-black/30 border-brawl-border/20 opacity-50'
+                      : isUnlocked && bp.tier === 'plus'
+                        ? 'bg-blue-900/30 border-blue-700/40'
+                        : isUnlocked && bp.tier === 'premium'
+                          ? 'bg-purple-900/30 border-purple-700/40'
+                          : isUnlocked
+                            ? 'bg-brawl-card/60 border-brawl-border/50'
+                            : 'bg-black/30 border-brawl-border/20 opacity-50'
                 }`}
               >
                 {/* Level number */}

@@ -87,7 +87,25 @@ export const useBrawlPassStore = create<BrawlPassStore>()(
 
       getRewardForLevel: (level: number): BrawlPassReward => {
         const idx = Math.max(0, Math.min(level - 1, MAX_LEVEL - 1));
-        return BRAWL_PASS_REWARDS[idx];
+        const base = BRAWL_PASS_REWARDS[idx];
+        const tier = get().tier;
+        if (tier === 'plus') {
+          return {
+            coins: base.coins * 2,
+            gems: base.gems + (level % 5 === 0 ? 1 : 0),
+            powerPoints: base.powerPoints * 2 + 5,
+            bling: 10 + (level % 3 === 0 ? 10 : 0),
+          };
+        }
+        if (tier === 'premium') {
+          return {
+            coins: base.coins * 3,
+            gems: base.gems * 2 + (level % 3 === 0 ? 2 : 0),
+            powerPoints: base.powerPoints * 3 + 10,
+            bling: 25 + (level % 3 === 0 ? 25 : 0),
+          };
+        }
+        return base;
       },
 
       unlockTier: (tier: 'plus' | 'premium') => {
