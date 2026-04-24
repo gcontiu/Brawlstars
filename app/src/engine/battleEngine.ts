@@ -59,9 +59,11 @@ export function evaluateRound(
   const normalized = normalizeAnswer(answer);
 
   if (matchType === 'DE_TO_RO') {
-    // Article (button selection) must always be exact
-    const articleCorrect = selectedArticle?.toLowerCase() === word.article;
-    if (!articleCorrect) return 'wrong';
+    // For nouns: article button must be selected and correct
+    if (word.article) {
+      const articleCorrect = selectedArticle?.toLowerCase() === word.article;
+      if (!articleCorrect) return 'wrong';
+    }
 
     const correctTranslation = normalizeAnswer(word.romanian);
 
@@ -92,24 +94,33 @@ export function evaluateRound(
 
     return 'wrong';
   } else {
-    // RO_TO_DE: user types "article word"
-    const expectedFull = normalizeAnswer(`${word.article} ${word.german}`);
+    if (word.article) {
+      // Noun RO_TO_DE: user types "article word"
+      const expectedFull = normalizeAnswer(`${word.article} ${word.german}`);
 
-    // Exact match
-    if (normalized === expectedFull) return 'correct';
+      // Exact match
+      if (normalized === expectedFull) return 'correct';
 
-    // Split to check article separately (article always strict)
-    const parts = normalized.split(' ');
-    const typedArticle = parts[0];
-    const typedWord = parts.slice(1).join(' ');
+      // Split to check article separately (article always strict)
+      const parts = normalized.split(' ');
+      const typedArticle = parts[0];
+      const typedWord = parts.slice(1).join(' ');
 
-    if (typedArticle !== word.article) return 'wrong';
+      if (typedArticle !== word.article) return 'wrong';
 
-    const correctWord = normalizeAnswer(word.german);
-    const tol = getTypoTolerance(correctWord.length);
-    if (tol > 0 && levenshtein(typedWord, correctWord) <= tol) return 'almost';
+      const correctWord = normalizeAnswer(word.german);
+      const tol = getTypoTolerance(correctWord.length);
+      if (tol > 0 && levenshtein(typedWord, correctWord) <= tol) return 'almost';
 
-    return 'wrong';
+      return 'wrong';
+    } else {
+      // Verb/adjective/other RO_TO_DE: user types just the German word
+      const correctWord = normalizeAnswer(word.german);
+      if (normalized === correctWord) return 'correct';
+      const tol = getTypoTolerance(correctWord.length);
+      if (tol > 0 && levenshtein(normalized, correctWord) <= tol) return 'almost';
+      return 'wrong';
+    }
   }
 }
 

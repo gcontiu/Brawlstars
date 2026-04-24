@@ -79,6 +79,8 @@ export function LobbyScreen({ onPlay, onGameModes, onShop, onBrawlers, onTrophyR
         {/* Side buttons RIGHT */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3">
           <FeedbackButton />
+          {/* DEV-ONLY: cheat button pentru testare manuală — șterge blocul acesta + componenta DevGemsButton când nu mai e nevoie */}
+          <DevGemsButton />
         </div>
 
         {/* Brawler display */}
@@ -216,6 +218,22 @@ function FeedbackButton() {
       <span className="text-[10px] text-gray-300 font-body">Feedback</span>
     </a>
   )
+}
+
+// DEV-ONLY: cheat pentru testare manuală. Șterge această componentă + referința din JSX când nu mai e nevoie.
+function DevGemsButton() {
+  const addGems = useEconomyStore((s) => s.addGems);
+  return (
+    <button
+      onClick={() => { playTap(); addGems(200000); }}
+      className="flex flex-col items-center gap-0.5 bg-purple-900/70 rounded-xl px-3 py-2
+        border border-purple-400/60 active:scale-95 transition-transform shadow-md"
+      title="DEV: +200000 gems"
+    >
+      <span className="text-xl">💎</span>
+      <span className="text-[10px] text-purple-200 font-body">+200k</span>
+    </button>
+  );
 }
 
 function SideButton({ icon, label, onClick }: { icon: string; label: string; onClick: () => void }) {

@@ -192,8 +192,8 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     store.recordResult(isCorrect);
 
     const correctAnswer = matchType === 'DE_TO_RO'
-      ? `${word.article} → ${word.romanian}`
-      : `${word.article} ${word.german}`;
+      ? word.article ? `${word.article} → ${word.romanian}` : word.romanian
+      : word.article ? `${word.article} ${word.german}` : word.german;
 
     setShowFeedback({ result: evalResult, correctAnswer });
     store.setPhase('feedback');
@@ -303,7 +303,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
               .filter((r) => !r.isCorrect && !r.isRevenge)
               .map((r, i) => (
                 <div key={i} className="text-sm text-red-300 mb-1 font-body">
-                  {r.word.article} {r.word.german} = {r.word.romanian}
+                  {r.word.article ? `${r.word.article} ` : ''}{r.word.german} = {r.word.romanian}
                 </div>
               ))}
           </div>
@@ -400,8 +400,8 @@ export function BattleScreen({ onBack, gameMode }: Props) {
           </p>
         </div>
 
-        {/* Article buttons (Type A) */}
-        {isTypeA && (
+        {/* Article buttons (Type A, nouns only) */}
+        {isTypeA && !!currentWord.article && (
           <div className="flex gap-3 mb-6">
             {(['der', 'die', 'das'] as const).map((art) => (
               <button
@@ -429,9 +429,9 @@ export function BattleScreen({ onBack, gameMode }: Props) {
             type="text"
             value={answer}
             onChange={(e) => setAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !showFeedback && (!isTypeA || selectedArticle) && submitAnswer()}
+            onKeyDown={(e) => e.key === 'Enter' && !showFeedback && (!isTypeA || !currentWord.article || selectedArticle) && submitAnswer()}
             disabled={!!showFeedback}
-            placeholder={isTypeA ? 'Traducere în română...' : 'Scrie în germană cu articol...'}
+            placeholder={isTypeA ? 'Traducere în română...' : currentWord.article ? 'Scrie în germană cu articol...' : 'Scrie în germană...'}
             className="w-full px-4 py-3 rounded-xl bg-brawl-card border border-brawl-border text-white
               text-center text-lg placeholder-gray-500 outline-none focus:border-brawl-yellow font-body"
             autoComplete="off"
@@ -443,7 +443,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
         {!showFeedback && (
           <button
             onClick={() => submitAnswer()}
-            disabled={!answer.trim() || (isTypeA && !selectedArticle)}
+            disabled={!answer.trim() || (isTypeA && !!currentWord.article && !selectedArticle)}
             className="mt-4 px-8 py-3 rounded-full bg-gradient-to-b from-brawl-green to-green-700
               font-display text-lg text-white active:scale-95 transition-transform
               disabled:opacity-40 disabled:active:scale-100"

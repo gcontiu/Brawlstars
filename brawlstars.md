@@ -7,15 +7,35 @@ O aplicație mobilă de tip simulator (Web-App PWA) bazată pe mecanicile joculu
 
 ## 2. Gameloop & Mecanici de Luptă (The Battle)
 
+### Tipuri de Cuvinte și Mecanici
+
+Vocabularul include **trei categorii** de cuvinte cu reguli diferite:
+
+#### A. Substantive (Nouns) — cu articol der/die/das
+- Exemple: *Abfahrt* (die), *Abflug* (der), *Auto* (das)
+- **Condiție:** Articolul este **obligatoriu** și verificat strict.
+
+#### B. Verbe, Adjective, Adverbe, Prepoziții — **FĂRĂ articol**
+- Exemple: *abfahren, fahren, fliegen* (verbe), *kalt, warm, sonnig* (adj), *abends, morgens, dort* (adv), *auf, gegen, ohne* (prep)
+- **Condiție:** Răspunsurile nu necesită articol.
+
 ### Tipuri de Meciuri
+
 1. **Meci Tip A (DE -> RO):**
-   - **Cerință:** Apare un cuvânt în germană (ex: *Abfahrt*).
-   - **Interacțiune:** Selectarea articolului corect (**Der/Die/Das**) + scrierea traducerii în română.
-   - **Condiție Win:** Ambele elemente corecte.
+   - **Pentru substantive:** Apare un cuvânt în germană (ex: *Abfahrt*).
+     - **Interacțiune:** Selectarea articolului corect (**Der/Die/Das**) + scrierea traducerii în română.
+     - **Condiție Win:** Ambele elemente corecte.
+   - **Pentru verbe/adjective/alte:** Apare cuvântul în germană (ex: *abfahren*, *kalt*, *abends*).
+     - **Interacțiune:** Scrierea traducerii în română (fără selecție articol).
+     - **Condiție Win:** Traducerea corectă.
+
 2. **Meci Tip B (RO -> DE):**
-   - **Cerință:** Apare un cuvânt în română (ex: *decolare*).
-   - **Interacțiune:** Scrierea cuvântului în germană **incluzând articolul** (ex: *der Abflug*).
-   - **Condiție Win:** Ortografie și articol 100% corecte.
+   - **Pentru substantive:** Apare un cuvânt în română (ex: *decolare*).
+     - **Interacțiune:** Scrierea cuvântului în germană **incluzând articolul** (ex: *der Abflug*).
+     - **Condiție Win:** Ortografie și articol 100% corecte.
+   - **Pentru verbe/adjective/alte:** Apare traducerea în română (ex: *a zbura*, *rece*, *seara*).
+     - **Interacțiune:** Scrierea doar a cuvântului în germană, **fără articol** (ex: *fliegen*, *kalt*, *abends*).
+     - **Condiție Win:** Cuvântul germanic corect.
 
 ### Selectare Game Mode
 Înainte de battle, utilizatorul alege modul:
@@ -163,8 +183,35 @@ Brawl Pass are 30 de nivele. Recompensele per nivel depind de tier-ul activ.
 ---
 
 ## 7. Date Tehnice
-- **Sursă Vocabular:** Toate cuvintele din fișierul `cuvinte.md` (A-Z), parsate și structurate.
-- **Persistență:** Salvare automată în `localStorage` (progresul rămâne salvat în browser-ul telefonului).
+
+### Vocabular & Componență
+
+- **Total:** 507 cuvinte (din `vocabulary.ts`)
+  - **300+ substantive** (nouns cu articol der/die/das) din lecțiile Fit in Deutsch 1
+  - **207+ cuvinte non-substantiv** (verbe, adjective, adverbe, prepoziții)
+- **Sursă:** Fișierul `cuvinte.md` (A-Z), repartizat echilibrat peste **12 categorii semantice**.
+- **Mapare Categorie-Brawler:** Fiecare dintre cei 12 brawlers controlează un subset de cuvinte din propria categorie (1:1 mapping).
+
+### Sistem de Categorii
+**Transport, Timp, Animale, Casa, Familie, Berufe, Kleidung, Essen, Stadt, Freizeit, Natur, Feste**
+
+### Tipuri de Cuvinte și Mecanica Jocului
+
+| Tip | Exemple | DE→RO | RO→DE | Note |
+|-----|---------|-------|-------|------|
+| **Substantive** (cu articol) | Abfahrt, Auto, Bahn | Selectează Der/Die/Das + traduce | Scrie "articol + cuvânt" | Articolul ÎNTOTDEAUNA strict |
+| **Verbe** | fahren, fliegen, abfahren | Scrie doar traducerea | Scrie cuvântul german | Fără articol, toleranță Levenshtein |
+| **Adjective** | kalt, warm, elegánt | Scrie doar traducerea | Scrie cuvântul german | Fără articol, toleranță Levenshtein |
+| **Adverbe** | abends, morgens, dort | Scrie doar traducerea | Scrie cuvântul german | Fără articol, toleranță Levenshtein |
+| **Prepoziții** | auf, gegen, ohne, neben | Scrie doar traducerea | Scrie cuvântul german | Fără articol, toleranță Levenshtein |
+
+**Impactul asupra UI:**
+- **Mod DE→RO cu non-substantive:** Butoanele Der/Die/Das sunt **ASCUNSE**; utilizatorul vede doar câmp text pentru traducere.
+- **Mod RO→DE cu non-substantive:** Placeholder schimbat de la "Scrie în germană cu articol..." la "Scrie în germană..." pentru claritate.
+- **Feedback & replay (De repetat):** Afișare "articol + cuvânt" doar pentru substantive; pentru alte tipuri se afișează doar cuvântul germanic.
+
+### Persistență
+- **Salvare automată:** `localStorage` (progresul rămâne salvat în browser-ul telefonului).
 - **Referință:** Pentru orice ambiguitate în specificații, se folosește rețeta din Brawl Stars original (vezi [Brawl Stars Wiki](https://brawlstars.fandom.com/wiki/Brawl_Stars_Wiki)).
 
 ---
@@ -185,18 +232,32 @@ Brawl Pass are 30 de nivele. Recompensele per nivel depind de tier-ul activ.
 
 Feature-uri care apropie aplicația de feel-ul Brawl Stars original, prioritizate pentru următoarea iterație.
 
-### 9.1 Multiple Brawlers = Categorii Vocabular
-Fiecare brawler acoperă o **temă de vocabular** din manualul Fit in Deutsch 1:
-- *Shelly* 🎯 — Familie & Beruf (Lektion 1.1, 65 cuvinte)
-- *Colt* 🔫 — Casă & Obiecte (Lektion 1.2, 38 cuvinte)
-- *Nita* 🐻 — Oraș & Timp Liber (Lektion 1.3, 30 cuvinte)
-- *Bull* 🐂 — Călătorii & Timp (Lektion 2.1, 63 cuvinte)
-- *Poco* 🎸 — Îmbrăcăminte & Shopping (Lektion 2.2, 48 cuvinte)
-- *Rosa* 🌹 — Natură & Animale (Lektion 2.3, 49 cuvinte)
-- Unlock brawleri: Shelly gratuit, restul la 100/250/500/750/1000 trofee globale.
+### 9.1 Multiple Brawlers = Categorii Vocabular (v3.4)
+Fiecare din cei **12 brawlers** acoperă o **categorie tematică distinctă de vocabular** din manualul Fit in Deutsch 1:
+
+| # | Brawler | Emoji | Categorie | Unlock | Cuvinte |
+|---|---------|-------|-----------|--------|---------|
+| 1 | *Shelly* | 🚂 | Transport & Reisen | 0 trofee | 30 |
+| 2 | *Colt* | 📅 | Timp & Anotimpuri | 100 trofee | 28 |
+| 3 | *Nita* | 🐾 | Animale | 250 trofee | 25 |
+| 4 | *Bull* | 🏠 | Casa & Mobilier | 500 trofee | 33 |
+| 5 | *Poco* | 👨‍👩‍👧 | Familie & Oameni | 750 trofee | 18 |
+| 6 | *Rosa* | 💼 | Profesiuni & Muncă | 1.000 trofee | 30 |
+| 7 | *Mortis* | 👗 | Îmbrăcăminte & Accesorii | 1.250 trofee | 27 |
+| 8 | *Bo* | 🍕 | Mâncare & Restaurant | 1.500 trofee | 15 |
+| 9 | *Jessie* | 🏙️ | Oraș & Locații | 1.750 trofee | 20 |
+| 10 | *Brock* | 🎮 | Timp Liber & Medii | 2.000 trofee | 28 |
+| 11 | *Barley* | 🌿 | Natură & Vreme | 2.250 trofee | 29 |
+| 12 | *Sandy* | 🎉 | Feste & Sărbători | 2.500 trofee | 12 |
+
+**Structura categoriilor:**
+- Fiecare categorie grupează noțiuni semantice coerente (ex: *Transport & Reisen* = vehicule, călătorii, verbe de mișcare, adverbe de direcție).
+- **Total vocabular:** 507 cuvinte (300+ substantive + 200+ verbe/adjective/adverbe/prepoziții), repartizate echilibrat peste 12 categorii.
+- Substantivele și cuvintele aferente (verbe, adjective) din aceeași categorie sunt **mutuale în battle** — dacă joci categoria "Transport", iei atât substantive (*Zug*, *Auto*) cât și verbe/prepoziții corelate (*fahren*, *fliegen*, *zum*).
+- Unlock brawleri: Shelly gratuit (0 trofee), restul deblochează progresiv la **trofee globale** cumulative (100, 250, 500, etc.).
 - Upgrade-ul (PP + Coins) și trofeele sunt **per-brawler**.
-- Cuvintele se deblochează per brawler la fiecare 250 trofee ale brawlerului.
-- Cuvintele se vizualizează în ecranul Brawlers, sub butonul de upgrade.
+- Cuvintele se deblochează per brawler la fiecare **250 trofee ale brawlerului respectiv**.
+- Cuvintele se vizualizează în ecranul **Brawlers**, sub butonul de upgrade.
 
 ### 9.2 Star Drops Post-Battle
 După fiecare **victorie**, drop aleatoriu cu 6 rarități:

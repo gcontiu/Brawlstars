@@ -2,7 +2,7 @@ export interface VocabWord {
   id: string;
   german: string;
   romanian: string;
-  article: 'der' | 'die' | 'das';
+  article?: 'der' | 'die' | 'das';
   category: string;
   acceptedAnswers?: string[]; // sinonime acceptate pentru traducerea în română (DE→RO)
 }
