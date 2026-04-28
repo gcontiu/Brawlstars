@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { usePlayerStore } from '../../stores/usePlayerStore';
 import { useEconomyStore } from '../../stores/useEconomyStore';
 import { useBrawlPassStore } from '../../stores/useBrawlPassStore';
@@ -16,12 +17,26 @@ interface Props {
   onBrawlPass: () => void;
 }
 
+function useIsLandscape() {
+  const [isLandscape, setIsLandscape] = useState(
+    () => window.matchMedia('(orientation: landscape)').matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(orientation: landscape)');
+    const handler = () => setIsLandscape(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+  return isLandscape;
+}
+
 export function LobbyScreen({ onPlay, onGameModes, onShop, onBrawlers, onTrophyRoad, onQuest, onBrawlPass }: Props) {
   const { trophies, xp } = usePlayerStore();
   const { coins, gems, bling, credits, powerPoints } = useEconomyStore();
   const unlockedCount = getUnlockedWordCount(trophies);
   const { level: brawlPassLevel, xpInLevel } = useBrawlPassStore();
   const brawlPassProgress = xpInLevel / 100;
+  const isLandscape = useIsLandscape();
 
   const brawlerStore = useBrawlerStore();
   const activeDef = getBrawlerDef(brawlerStore.activeBrawlerId);
@@ -73,18 +88,20 @@ export function LobbyScreen({ onPlay, onGameModes, onShop, onBrawlers, onTrophyR
         {/* Side buttons LEFT */}
         <div className="absolute left-3 top-1/2 -translate-y-1/2 flex flex-col gap-3">
           <SideButton icon="🛒" label="Shop" onClick={() => { playTap(); onShop(); }} />
-          <SideButton icon="🎮" label="Brawlers" onClick={() => { playTap(); onBrawlers(); }} />
+          <SideButton icon="👥" label="Brawlers" onClick={() => { playTap(); onBrawlers(); }} />
         </div>
 
         {/* Side buttons RIGHT */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3">
           <FeedbackButton />
-          {/* DEV-ONLY: cheat button pentru testare manuală — șterge blocul acesta + componenta DevGemsButton când nu mai e nevoie */}
-          <DevGemsButton />
+          <DevCheatButton />
         </div>
 
-        {/* Brawler display */}
-        <div className="flex flex-col items-center">
+        {/* Brawler display — clickable → deschide lista brawleri */}
+        <div
+          className="flex flex-col items-center cursor-pointer active:scale-95 transition-transform"
+          onClick={() => { playTap(); onBrawlers(); }}
+        >
           <p className="text-[10px] tracking-widest text-gray-500 uppercase mb-1">
             {activeDef.name} · Nivel {activeProgress.level}
           </p>
@@ -97,7 +114,7 @@ export function LobbyScreen({ onPlay, onGameModes, onShop, onBrawlers, onTrophyR
               <img
                 src={activeDef.image}
                 alt={activeDef.name}
-                className="relative w-48 h-48 object-contain"
+                className={`relative object-contain ${isLandscape ? 'w-28 h-28' : 'w-48 h-48'}`}
                 style={{ filter: `drop-shadow(0 4px 24px ${activeDef.glowColor})` }}
                 onError={(e) => {
                   e.currentTarget.style.display = 'none';
@@ -107,11 +124,11 @@ export function LobbyScreen({ onPlay, onGameModes, onShop, onBrawlers, onTrophyR
               />
             ) : null}
             {(!activeDef.image) ? (
-              <div className="relative w-48 h-48 flex items-center justify-center text-8xl">
+              <div className={`relative flex items-center justify-center text-8xl ${isLandscape ? 'w-28 h-28' : 'w-48 h-48'}`}>
                 {activeDef.emoji}
               </div>
             ) : (
-              <div className="relative w-48 h-48 items-center justify-center text-8xl hidden">
+              <div className={`relative items-center justify-center text-8xl hidden ${isLandscape ? 'w-28 h-28' : 'w-48 h-48'}`}>
                 {activeDef.emoji}
               </div>
             )}
@@ -127,67 +144,109 @@ export function LobbyScreen({ onPlay, onGameModes, onShop, onBrawlers, onTrophyR
       {/* Bottom bar */}
       <div className="relative z-10 px-3 pb-5 flex flex-col gap-2">
 
-        {/* Top row: Brawl Pass + Quest */}
-        <div className="flex items-end gap-2">
-          {/* Brawl Pass slider */}
-          <div onClick={() => { playTap(); onBrawlPass(); }}
-            className="flex-1 bg-black/60 rounded-xl border border-brawl-border px-3 py-2 min-w-0 active:scale-95 transition-transform cursor-pointer">
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-[10px] font-display text-brawl-yellow tracking-wide">BRAWL PASS</span>
-              <span className="text-[10px] text-gray-400">Lv {brawlPassLevel}/30</span>
+        {isLandscape ? (
+          /* Landscape: [BRAWLPASS][GAMEMODES][PLAY] + Quest */
+          <div className="flex items-center gap-2">
+            {/* Brawl Pass */}
+            <div onClick={() => { playTap(); onBrawlPass(); }}
+              className="flex-1 bg-black/60 rounded-xl border border-brawl-border px-3 py-2 min-w-0 active:scale-95 transition-transform cursor-pointer">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] font-display text-brawl-yellow tracking-wide">BRAWL PASS</span>
+                <span className="text-[10px] text-gray-400">Lv {brawlPassLevel}/30</span>
+              </div>
+              <div className="relative h-3 bg-black/60 rounded-full border border-brawl-border overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-brawl-yellow to-brawl-orange rounded-full transition-all duration-500"
+                  style={{ width: `${brawlPassProgress * 100}%` }}
+                />
+              </div>
             </div>
-            <div className="relative h-4 bg-black/60 rounded-full border border-brawl-border overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-brawl-yellow to-brawl-orange rounded-full transition-all duration-500"
-                style={{ width: `${brawlPassProgress * 100}%` }}
-              />
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="absolute top-0 bottom-0 w-px bg-white/20" style={{ left: `${i * 20}%` }} />
-              ))}
-            </div>
-            <div className="flex justify-between mt-0.5">
-              {[0, 1, 2, 3, 4].map((i) => {
-                const lvl = Math.floor((brawlPassLevel - 1) / 5) * 5 + i;
-                return <span key={i} className="text-[9px] text-gray-600">{lvl + 1}</span>;
-              })}
-            </div>
+
+            {/* Quest */}
+            <button onClick={() => { playTap(); onQuest(); }}
+              className="flex flex-col items-center gap-0.5 bg-black/60 rounded-xl border border-brawl-border px-2 py-2 active:scale-95 transition-transform flex-shrink-0">
+              <span className="text-lg">📋</span>
+              <span className="text-[9px] text-gray-300 font-body">Quest</span>
+            </button>
+
+            {/* Gamemodes */}
+            <button onClick={() => { playTap(); onGameModes(); }}
+              className="flex flex-col items-center gap-0.5 bg-black/60 rounded-xl border border-brawl-border px-3 py-2 active:scale-95 transition-transform flex-shrink-0">
+              <span className="text-lg">🎮</span>
+              <span className="text-[9px] font-display text-gray-300 tracking-wide">MODES</span>
+            </button>
+
+            {/* PLAY */}
+            <button onClick={() => { playTap(); onPlay(); }}
+              className="rounded-2xl bg-gradient-to-b from-brawl-yellow to-brawl-orange
+                font-display text-black px-6 py-3
+                border-2 border-yellow-300/80 active:scale-95 transition-transform leading-none
+                flex flex-col items-center animate-play-breathe flex-shrink-0">
+              <span className="text-2xl leading-none">▶</span>
+              <span className="text-xs mt-0.5">PLAY</span>
+            </button>
           </div>
+        ) : (
+          /* Portrait: existing layout */
+          <>
+            {/* Top row: Brawl Pass + Quest */}
+            <div className="flex items-end gap-2">
+              <div onClick={() => { playTap(); onBrawlPass(); }}
+                className="flex-1 bg-black/60 rounded-xl border border-brawl-border px-3 py-2 min-w-0 active:scale-95 transition-transform cursor-pointer">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] font-display text-brawl-yellow tracking-wide">BRAWL PASS</span>
+                  <span className="text-[10px] text-gray-400">Lv {brawlPassLevel}/30</span>
+                </div>
+                <div className="relative h-4 bg-black/60 rounded-full border border-brawl-border overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-brawl-yellow to-brawl-orange rounded-full transition-all duration-500"
+                    style={{ width: `${brawlPassProgress * 100}%` }}
+                  />
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="absolute top-0 bottom-0 w-px bg-white/20" style={{ left: `${i * 20}%` }} />
+                  ))}
+                </div>
+                <div className="flex justify-between mt-0.5">
+                  {[0, 1, 2, 3, 4].map((i) => {
+                    const lvl = Math.floor((brawlPassLevel - 1) / 5) * 5 + i;
+                    return <span key={i} className="text-[9px] text-gray-600">{lvl + 1}</span>;
+                  })}
+                </div>
+              </div>
 
-          {/* Quest button */}
-          <button onClick={() => { playTap(); onQuest(); }}
-            className="flex flex-col items-center gap-0.5 bg-black/60 rounded-xl border border-brawl-border px-3 py-2 active:scale-95 transition-transform flex-shrink-0">
-            <span className="text-xl">📋</span>
-            <span className="text-[10px] text-gray-300 font-body">Quest</span>
-          </button>
-        </div>
+              <button onClick={() => { playTap(); onQuest(); }}
+                className="flex flex-col items-center gap-0.5 bg-black/60 rounded-xl border border-brawl-border px-3 py-2 active:scale-95 transition-transform flex-shrink-0">
+                <span className="text-xl">📋</span>
+                <span className="text-[10px] text-gray-300 font-body">Quest</span>
+              </button>
+            </div>
 
-        {/* Bottom row: Gamemodes (center) + PLAY (right) */}
-        <div className="flex items-center justify-between gap-3">
-          {/* Spacer left */}
-          <div className="flex-1" />
+            {/* Bottom row: Gamemodes + PLAY */}
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1" />
 
-          {/* Gamemodes button — center */}
-          <button
-            onClick={() => { playTap(); onGameModes(); }}
-            className="flex flex-col items-center gap-0.5 bg-black/60 rounded-xl border border-brawl-border px-4 py-2.5 active:scale-95 transition-transform"
-          >
-            <span className="text-xl">🎮</span>
-            <span className="text-[10px] font-display text-gray-300 tracking-wide">GAMEMODES</span>
-          </button>
+              <button
+                onClick={() => { playTap(); onGameModes(); }}
+                className="flex flex-col items-center gap-0.5 bg-black/60 rounded-xl border border-brawl-border px-4 py-2.5 active:scale-95 transition-transform"
+              >
+                <span className="text-xl">🎮</span>
+                <span className="text-[10px] font-display text-gray-300 tracking-wide">GAMEMODES</span>
+              </button>
 
-          {/* PLAY button — right */}
-          <button
-            onClick={() => { playTap(); onPlay(); }}
-            className="rounded-2xl bg-gradient-to-b from-brawl-yellow to-brawl-orange
-              font-display text-2xl text-black px-8 py-4
-              border-2 border-yellow-300/80 active:scale-95 transition-transform leading-none
-              flex flex-col items-center animate-play-breathe"
-            style={{ minWidth: '96px' }}
-          >
-            <span className="text-3xl leading-none">▶</span>
-            <span className="text-sm mt-0.5">PLAY</span>
-          </button>
-        </div>
+              <button
+                onClick={() => { playTap(); onPlay(); }}
+                className="rounded-2xl bg-gradient-to-b from-brawl-yellow to-brawl-orange
+                  font-display text-2xl text-black px-8 py-4
+                  border-2 border-yellow-300/80 active:scale-95 transition-transform leading-none
+                  flex flex-col items-center animate-play-breathe"
+                style={{ minWidth: '96px' }}
+              >
+                <span className="text-3xl leading-none">▶</span>
+                <span className="text-sm mt-0.5">PLAY</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -203,8 +262,8 @@ function ResourcePill({ icon, value, color }: { icon: string; value: number; col
 }
 
 function FeedbackButton() {
-  const url = import.meta.env.VITE_FEEDBACK_URL
-  if (!url) return null
+  const url = import.meta.env.VITE_FEEDBACK_URL;
+  if (!url) return null;
   return (
     <a
       href={url}
@@ -217,21 +276,33 @@ function FeedbackButton() {
       <span className="text-xl">💬</span>
       <span className="text-[10px] text-gray-300 font-body">Feedback</span>
     </a>
-  )
+  );
 }
 
-// DEV-ONLY: cheat pentru testare manuală. Șterge această componentă + referința din JSX când nu mai e nevoie.
-function DevGemsButton() {
+function DevCheatButton() {
   const addGems = useEconomyStore((s) => s.addGems);
+  const updateTrophies = usePlayerStore((s) => s.updateTrophies);
+  const brawlPass = useBrawlPassStore();
+
+  function handleCheat() {
+    playTap();
+    addGems(200000);
+    updateTrophies(10000);
+    brawlPass.addXP(1000000);
+    brawlPass.unlockTier('plus');
+    brawlPass.unlockTier('premium');
+    brawlPass.switchTier('premium');
+  }
+
   return (
     <button
-      onClick={() => { playTap(); addGems(200000); }}
+      onClick={handleCheat}
       className="flex flex-col items-center gap-0.5 bg-purple-900/70 rounded-xl px-3 py-2
         border border-purple-400/60 active:scale-95 transition-transform shadow-md"
-      title="DEV: +200000 gems"
+      title="DEV: cheat"
     >
       <span className="text-xl">💎</span>
-      <span className="text-[10px] text-purple-200 font-body">+200k</span>
+      <span className="text-[10px] text-purple-200 font-body">+DEV</span>
     </button>
   );
 }

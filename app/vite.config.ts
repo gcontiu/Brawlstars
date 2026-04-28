@@ -16,7 +16,7 @@ export default defineConfig({
         description: 'Învață germana ca în Brawl Stars!',
         start_url: '/',
         display: 'standalone',
-        orientation: 'portrait',
+        orientation: 'any',
         background_color: '#0f0f23',
         theme_color: '#F7D020',
         icons: [

@@ -41,7 +41,7 @@ function App() {
         <GameModeSelect
           onStart={(mode) => {
             setGameMode(mode);
-            setScreen('battle');
+            setScreen('lobby');
           }}
           onBack={() => setScreen('lobby')}
           currentMode={gameMode}

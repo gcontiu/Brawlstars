@@ -5,6 +5,7 @@ import { useEconomyStore } from '../../stores/useEconomyStore';
 import { useQuestStore } from '../../stores/useQuestStore';
 import { useBrawlPassStore } from '../../stores/useBrawlPassStore';
 import { useBrawlerStore } from '../../stores/useBrawlerStore';
+import { useGadgetStore } from '../../stores/useGadgetStore';
 import { vocabulary } from '../../data/vocabulary';
 import { getBrawlerDef } from '../../data/brawlerDefs';
 import { evaluateRound, XP_PER_BATTLE } from '../../engine/battleEngine';
@@ -23,13 +24,24 @@ interface Props {
   gameMode: GameMode;
 }
 
+interface PacaneleChoice {
+  label: string;
+  answerText: string;
+  articleOverride?: 'der' | 'die' | 'das';
+}
+
 export function BattleScreen({ onBack, gameMode }: Props) {
   const battle = useBattleStore();
   const player = usePlayerStore();
   const economy = useEconomyStore();
   const brawlerStore = useBrawlerStore();
+  const gadgetStore = useGadgetStore();
 
-  const [timeLeft, setTimeLeft] = useState(20);
+  const activeBrawlerId = brawlerStore.activeBrawlerId;
+  const brawlerLevel = brawlerStore.getProgress(activeBrawlerId).level;
+  const baseTime = brawlerLevel >= 4 ? 25 : 20;
+
+  const [timeLeft, setTimeLeft] = useState(baseTime);
   const [answer, setAnswer] = useState('');
   const [selectedArticle, setSelectedArticle] = useState<'der' | 'die' | 'das' | null>(null);
   const [showFeedback, setShowFeedback] = useState<{ result: EvalResult; correctAnswer: string } | null>(null);
@@ -43,6 +55,14 @@ export function BattleScreen({ onBack, gameMode }: Props) {
   const [showFlash, setShowFlash] = useState(false);
   const [comboKey, setComboKey] = useState(0);
 
+  // Gadget states (per-battle)
+  const [sculaUsed, setSculaUsed] = useState(false);
+  const [sculaActiveThisWord, setSculaActiveThisWord] = useState(false);
+  const [sculaArticlePrefix, setSculaArticlePrefix] = useState<string | null>(null); // RO_TO_DE prefix
+  const [pacaneleUsed, setPacaneleUsed] = useState(false);
+  const [pacaneleChoices, setPacaneleChoices] = useState<PacaneleChoice[] | null>(null);
+  const [sursisLastWordIdx, setSursisLastWordIdx] = useState(-999);
+
   const inputRef = useRef<HTMLInputElement | undefined>(undefined);
   const timerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
@@ -55,9 +75,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     return Math.random() > 0.5 ? 'DE_TO_RO' : 'RO_TO_DE';
   }
 
-  // Build battle pool filtered by active brawler
   useEffect(() => {
-    const activeBrawlerId = brawlerStore.activeBrawlerId;
     const activeDef = getBrawlerDef(activeBrawlerId);
     const brawlerTrophies = brawlerStore.getProgress(activeBrawlerId).trophies;
     const unlocked = getUnlockedWordCount(brawlerTrophies);
@@ -67,7 +85,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     const matchTypes: MatchType[] = shuffled.map(() => pickMatchType());
     battle.startBattle(shuffled);
     useBattleStore.setState({ matchTypes });
-    analytics.battleStarted(brawlerStore.activeBrawlerId, gameMode);
+    analytics.battleStarted(activeBrawlerId, gameMode);
   }, []);
 
   // Countdown
@@ -79,13 +97,16 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     return () => clearTimeout(t);
   }, [battle.phase, countdown]);
 
-  // Timer
+  // Timer — reset per-word gadget state
   useEffect(() => {
     if (battle.phase !== 'playing') return;
-    setTimeLeft(20);
+    setTimeLeft(baseTime);
     setAnswer('');
     setSelectedArticle(null);
     setWaitingForContinue(false);
+    setSculaActiveThisWord(false);
+    setSculaArticlePrefix(null);
+    setPacaneleChoices(null);
     setTimeout(() => inputRef.current?.focus(), 100);
 
     timerRef.current = setInterval(() => {
@@ -111,7 +132,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     player.addXP(XP_PER_BATTLE);
     player.updateTrophies(trophyDelta);
     player.incrementBattles();
-    brawlerStore.addTrophies(brawlerStore.activeBrawlerId, trophyDelta);
+    brawlerStore.addTrophies(activeBrawlerId, trophyDelta);
 
     const ppEarned = Math.floor(successRate / 20);
     let gemsEarned = 0;
@@ -120,7 +141,6 @@ export function BattleScreen({ onBack, gameMode }: Props) {
       player.incrementWinStreak();
       economy.addCoins(10 + Math.floor(successRate / 10));
       playCoinDrop();
-      // Roll star drop on win
       setStarDrop(rollStarDrop());
     } else {
       player.resetWinStreak();
@@ -143,7 +163,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     if (revengeCorrect > 0) quests.updateProgress('revenge_rounds', revengeCorrect);
     quests.updateProgress('consecutive_battles', 1);
 
-    analytics.battleCompleted(brawlerStore.activeBrawlerId, gameMode, correct, total);
+    analytics.battleCompleted(activeBrawlerId, gameMode, correct, total);
     setRewardsApplied(true);
   }, [battle.phase, rewardsApplied]);
 
@@ -177,16 +197,19 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     }
   }, [gameMode]);
 
-  const submitAnswer = useCallback((timeout?: boolean) => {
+  const submitAnswer = useCallback((timeout?: boolean, overrideAnswer?: string, overrideArticle?: 'der' | 'die' | 'das') => {
     clearInterval(timerRef.current);
     const store = useBattleStore.getState();
     const word = store.words[store.currentIndex];
     const matchType = store.matchTypes[store.currentIndex];
     if (!word) return;
 
+    const effectiveAnswer = overrideAnswer ?? answer;
+    const effectiveArticle = overrideArticle ?? selectedArticle ?? undefined;
+
     const evalResult = timeout
       ? 'wrong' as EvalResult
-      : evaluateRound(word, matchType, answer, selectedArticle ?? undefined);
+      : evaluateRound(word, matchType, effectiveAnswer, effectiveArticle);
 
     const isCorrect = evalResult !== 'wrong';
     store.recordResult(isCorrect);
@@ -215,7 +238,90 @@ export function BattleScreen({ onBack, gameMode }: Props) {
       setWaitingForContinue(true);
       analytics.wordWrong(word.id, word.german, matchType);
     }
-  }, [answer, selectedArticle, advanceRound]);
+  }, [answer, selectedArticle, advanceRound, combo]);
+
+  // ---- Gadget handlers ----
+
+  function activateScula() {
+    if (sculaUsed || !gadgetStore.has(activeBrawlerId, 'scula') || showFeedback) return;
+    setSculaUsed(true);
+    setSculaActiveThisWord(true);
+    if (!currentWord) return;
+    if (currentMatchType === 'DE_TO_RO' && currentWord.article) {
+      setSelectedArticle(currentWord.article);
+    } else if (currentMatchType === 'RO_TO_DE' && currentWord.article) {
+      setSculaArticlePrefix(currentWord.article);
+      setAnswer(currentWord.article + ' ');
+    }
+    playTap();
+  }
+
+  function activatePacanele() {
+    if (pacaneleUsed || !gadgetStore.has(activeBrawlerId, 'pacanele') || showFeedback || !currentWord) return;
+    setPacaneleUsed(true);
+    playTap();
+
+    const activeDef = getBrawlerDef(activeBrawlerId);
+    const allWords = vocabulary.filter((w) => activeDef.categories.includes(w.category));
+    const others = allWords.filter((w) => w.id !== currentWord.id);
+    const two = [...others].sort(() => Math.random() - 0.5).slice(0, 2);
+
+    if (currentMatchType === 'DE_TO_RO') {
+      // Auto-select correct article for the user
+      if (currentWord.article) setSelectedArticle(currentWord.article);
+
+      const choices: PacaneleChoice[] = [
+        { label: currentWord.romanian, answerText: currentWord.romanian, articleOverride: currentWord.article },
+        { label: two[0]?.romanian ?? '???', answerText: two[0]?.romanian ?? '???' },
+        { label: two[1]?.romanian ?? '???', answerText: two[1]?.romanian ?? '???' },
+      ].sort(() => Math.random() - 0.5);
+      setPacaneleChoices(choices);
+    } else {
+      const choices: PacaneleChoice[] = [
+        {
+          label: currentWord.article ? `${currentWord.article} ${currentWord.german}` : currentWord.german,
+          answerText: currentWord.article ? `${currentWord.article} ${currentWord.german}` : currentWord.german,
+        },
+        {
+          label: two[0] ? (two[0].article ? `${two[0].article} ${two[0].german}` : two[0].german) : '???',
+          answerText: two[0] ? (two[0].article ? `${two[0].article} ${two[0].german}` : two[0].german) : '???',
+        },
+        {
+          label: two[1] ? (two[1].article ? `${two[1].article} ${two[1].german}` : two[1].german) : '???',
+          answerText: two[1] ? (two[1].article ? `${two[1].article} ${two[1].german}` : two[1].german) : '???',
+        },
+      ].sort(() => Math.random() - 0.5);
+      setPacaneleChoices(choices);
+    }
+  }
+
+  function handlePacaneleChoice(choice: PacaneleChoice) {
+    setPacaneleChoices(null);
+    submitAnswer(false, choice.answerText, choice.articleOverride);
+  }
+
+  function activateSursis() {
+    if (!gadgetStore.has(activeBrawlerId, 'sursis') || showFeedback) return;
+    const cooldownOk = battle.currentIndex - sursisLastWordIdx >= 3;
+    if (!cooldownOk) return;
+    setSursisLastWordIdx(battle.currentIndex);
+    setTimeLeft(120);
+    clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setTimeLeft((t) => {
+        if (t <= 1) { submitAnswer(true); return 0; }
+        return t - 1;
+      });
+    }, 1000);
+    playTap();
+  }
+
+  // ---- Gadget availability checks ----
+  const sculaOwned = gadgetStore.has(activeBrawlerId, 'scula');
+  const pacaneleOwned = gadgetStore.has(activeBrawlerId, 'pacanele');
+  const sursisOwned = gadgetStore.has(activeBrawlerId, 'sursis');
+  const sursisCooldownOk = battle.currentIndex - sursisLastWordIdx >= 3;
+  const showGadgetBar = sculaOwned || pacaneleOwned || sursisOwned;
 
   // COUNTDOWN
   if (battle.phase === 'countdown') {
@@ -223,7 +329,7 @@ export function BattleScreen({ onBack, gameMode }: Props) {
       <div className="h-full flex flex-col bg-gradient-to-b from-[#1a1a4e] to-[#0a0a1a]">
         <div className="flex items-center px-4 pt-4">
           <button
-            onClick={() => { analytics.battleAbandoned(brawlerStore.activeBrawlerId, battle.currentIndex); battle.reset(); onBack(); }}
+            onClick={() => { analytics.battleAbandoned(activeBrawlerId, battle.currentIndex); battle.reset(); onBack(); }}
             className="flex items-center gap-1.5 text-gray-400 active:text-white transition-colors"
           >
             <span className="text-xl">‹</span>
@@ -239,8 +345,11 @@ export function BattleScreen({ onBack, gameMode }: Props) {
             <p className="text-xs text-gray-600 mt-2 font-body">
               {gameMode === 'DE_TO_RO' ? '🇩🇪 → 🇷🇴' : gameMode === 'RO_TO_DE' ? '🇷🇴 → 🇩🇪' : '🔀 Mix'}
             </p>
+            {brawlerLevel >= 4 && (
+              <p className="text-xs text-brawl-yellow/60 mt-1 font-body">+5s timer (Lv {brawlerLevel})</p>
+            )}
             {(() => {
-              const def = getBrawlerDef(brawlerStore.activeBrawlerId);
+              const def = getBrawlerDef(activeBrawlerId);
               return (
                 <p className="text-xs mt-2 font-body" style={{ color: def.glowColor }}>
                   {def.name} · {def.theme}
@@ -264,7 +373,6 @@ export function BattleScreen({ onBack, gameMode }: Props) {
 
     return (
       <div className="h-full flex flex-col items-center justify-center bg-gradient-to-b from-[#1a1a4e] to-[#0a0a1a] px-6 relative">
-        {/* Star Drop overlay */}
         {starDrop && (
           <StarDropOverlay drop={starDrop} onClose={() => setStarDrop(null)} />
         )}
@@ -332,9 +440,29 @@ export function BattleScreen({ onBack, gameMode }: Props) {
     <div
       className={`h-full flex flex-col bg-gradient-to-b from-[#1a1a4e] to-[#0a0a1a] relative overflow-hidden ${isShaking ? 'animate-screen-shake' : ''}`}
     >
-      {/* Green flash overlay on correct */}
       {showFlash && (
         <div className="absolute inset-0 z-20 pointer-events-none bg-green-400 animate-correct-flash" />
+      )}
+
+      {/* Păcănele choices overlay */}
+      {pacaneleChoices && (
+        <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/70">
+          <div className="bg-brawl-card border border-brawl-border rounded-2xl p-5 mx-4 w-full max-w-xs animate-bounce-in">
+            <p className="font-display text-brawl-yellow text-center text-lg mb-4 tracking-wide">PĂCĂNELE 🎰</p>
+            <div className="flex flex-col gap-3">
+              {pacaneleChoices.map((choice, i) => (
+                <button
+                  key={i}
+                  onClick={() => handlePacaneleChoice(choice)}
+                  className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-brawl-blue to-purple-700
+                    font-body text-white text-base active:scale-95 transition-transform border border-blue-400/40"
+                >
+                  {choice.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Progress bar */}
@@ -348,12 +476,48 @@ export function BattleScreen({ onBack, gameMode }: Props) {
         <span className="text-sm text-gray-400 font-body">{battle.currentIndex + 1}/{battle.words.length}</span>
       </div>
 
-      {/* Timer */}
-      <div className="flex justify-center my-4">
-        <div className={`w-16 h-16 rounded-full border-4 flex items-center justify-center font-display text-2xl
+      {/* Timer + Gadget bar */}
+      <div className="flex justify-center items-center gap-3 my-3 px-4">
+        <div className="w-4" />
+        <div className={`w-14 h-14 rounded-full border-4 flex items-center justify-center font-display text-xl
           ${timeLeft <= 5 ? 'border-brawl-red text-brawl-red animate-pulse' : 'border-brawl-yellow text-brawl-yellow'}`}>
           {timeLeft}
         </div>
+
+        {/* Gadget buttons (round) */}
+        {showGadgetBar && (
+          <div className="flex gap-2">
+            {sculaOwned && (
+              <GadgetButton
+                label="🔧"
+                title="Scula"
+                disabled={sculaUsed || !!showFeedback}
+                used={sculaUsed}
+                onClick={activateScula}
+              />
+            )}
+            {sursisOwned && (
+              <GadgetButton
+                label="⏱"
+                title="Sursis"
+                disabled={!sursisCooldownOk || !!showFeedback}
+                used={false}
+                cooldownText={!sursisCooldownOk ? `${3 - (battle.currentIndex - sursisLastWordIdx)}` : undefined}
+                onClick={activateSursis}
+              />
+            )}
+            {pacaneleOwned && (
+              <GadgetButton
+                label="🎰"
+                title="Păcănele"
+                disabled={pacaneleUsed || !!showFeedback}
+                used={pacaneleUsed}
+                onClick={activatePacanele}
+              />
+            )}
+          </div>
+        )}
+        <div className="w-4 flex-1" />
       </div>
 
       {/* Match type indicator */}
@@ -367,7 +531,6 @@ export function BattleScreen({ onBack, gameMode }: Props) {
       {/* Word display */}
       <div className="flex-1 flex flex-col items-center justify-center px-6 relative">
 
-        {/* Combo counter */}
         {combo >= 3 && (
           <div
             key={comboKey}
@@ -378,7 +541,6 @@ export function BattleScreen({ onBack, gameMode }: Props) {
           </div>
         )}
 
-        {/* Particle burst origin */}
         <div className="relative">
           {showParticles && (
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
@@ -400,21 +562,23 @@ export function BattleScreen({ onBack, gameMode }: Props) {
           </p>
         </div>
 
-        {/* Article buttons (Type A, nouns only) */}
+        {/* Article buttons (DE_TO_RO, nouns) */}
         {isTypeA && !!currentWord.article && (
           <div className="flex gap-3 mb-6">
             {(['der', 'die', 'das'] as const).map((art) => (
               <button
                 key={art}
                 onClick={() => { playTap(); setSelectedArticle(art); }}
-                disabled={!!showFeedback}
+                disabled={!!showFeedback || sculaActiveThisWord}
                 className={`px-6 py-3 rounded-xl font-display text-lg transition-all
                   ${selectedArticle === art
                     ? art === 'der' ? 'bg-blue-500 text-white scale-105'
                     : art === 'die' ? 'bg-red-500 text-white scale-105'
                     : 'bg-green-500 text-white scale-105'
                     : 'bg-brawl-card text-gray-300 border border-brawl-border'
-                  }`}
+                  }
+                  ${sculaActiveThisWord ? 'opacity-70 cursor-not-allowed' : ''}
+                `}
               >
                 {art}
               </button>
@@ -424,23 +588,45 @@ export function BattleScreen({ onBack, gameMode }: Props) {
 
         {/* Answer input */}
         <div className="w-full max-w-xs">
-          <input
-            ref={(el) => { inputRef.current = el ?? undefined; }}
-            type="text"
-            value={answer}
-            onChange={(e) => setAnswer(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !showFeedback && (!isTypeA || !currentWord.article || selectedArticle) && submitAnswer()}
-            disabled={!!showFeedback}
-            placeholder={isTypeA ? 'Traducere în română...' : currentWord.article ? 'Scrie în germană cu articol...' : 'Scrie în germană...'}
-            className="w-full px-4 py-3 rounded-xl bg-brawl-card border border-brawl-border text-white
-              text-center text-lg placeholder-gray-500 outline-none focus:border-brawl-yellow font-body"
-            autoComplete="off"
-            autoCapitalize="off"
-          />
+          {/* RO_TO_DE with Scula article prefix */}
+          {!isTypeA && sculaArticlePrefix ? (
+            <div className="flex items-stretch">
+              <div className="bg-brawl-yellow text-black font-display text-lg px-3 flex items-center rounded-l-xl border border-brawl-yellow">
+                {sculaArticlePrefix}
+              </div>
+              <input
+                ref={(el) => { inputRef.current = el ?? undefined; }}
+                type="text"
+                value={answer.slice(sculaArticlePrefix.length + 1)}
+                onChange={(e) => setAnswer(sculaArticlePrefix + ' ' + e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !showFeedback && submitAnswer()}
+                disabled={!!showFeedback}
+                placeholder="Scrie cuvântul..."
+                className="flex-1 px-4 py-3 rounded-r-xl bg-brawl-card border border-brawl-border text-white
+                  text-center text-lg placeholder-gray-500 outline-none focus:border-brawl-yellow font-body"
+                autoComplete="off"
+                autoCapitalize="off"
+              />
+            </div>
+          ) : (
+            <input
+              ref={(el) => { inputRef.current = el ?? undefined; }}
+              type="text"
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && !showFeedback && (!isTypeA || !currentWord.article || selectedArticle) && submitAnswer()}
+              disabled={!!showFeedback}
+              placeholder={isTypeA ? 'Traducere în română...' : currentWord.article ? 'Scrie în germană cu articol...' : 'Scrie în germană...'}
+              className="w-full px-4 py-3 rounded-xl bg-brawl-card border border-brawl-border text-white
+                text-center text-lg placeholder-gray-500 outline-none focus:border-brawl-yellow font-body"
+              autoComplete="off"
+              autoCapitalize="off"
+            />
+          )}
         </div>
 
         {/* Submit */}
-        {!showFeedback && (
+        {!showFeedback && !pacaneleChoices && (
           <button
             onClick={() => submitAnswer()}
             disabled={!answer.trim() || (isTypeA && !!currentWord.article && !selectedArticle)}
@@ -490,6 +676,40 @@ export function BattleScreen({ onBack, gameMode }: Props) {
         )}
       </div>
     </div>
+  );
+}
+
+function GadgetButton({
+  label, title, disabled, used, cooldownText, onClick,
+}: {
+  label: string;
+  title: string;
+  disabled: boolean;
+  used: boolean;
+  cooldownText?: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`relative w-11 h-11 rounded-full border-2 flex items-center justify-center text-xl
+        font-display transition-all active:scale-90
+        ${used
+          ? 'bg-gray-700/40 border-gray-600/40 opacity-40 cursor-not-allowed'
+          : disabled
+          ? 'bg-gray-700/40 border-gray-600/40 opacity-50 cursor-not-allowed'
+          : 'bg-gradient-to-b from-brawl-yellow/20 to-brawl-orange/20 border-brawl-yellow/60 shadow-md shadow-brawl-yellow/20'
+        }`}
+    >
+      {label}
+      {cooldownText && (
+        <span className="absolute -top-1 -right-1 w-4 h-4 bg-brawl-red rounded-full text-[9px] flex items-center justify-center font-display text-white">
+          {cooldownText}
+        </span>
+      )}
+    </button>
   );
 }
 

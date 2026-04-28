@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useBrawlerStore } from '../../stores/useBrawlerStore';
 import { usePlayerStore } from '../../stores/usePlayerStore';
 import { useEconomyStore } from '../../stores/useEconomyStore';
+import { useGadgetStore, GADGET_COSTS, GADGET_MIN_LEVEL, GADGET_LABELS, GADGET_DESCRIPTIONS, type GadgetType } from '../../stores/useGadgetStore';
 import { BRAWLER_DEFS, getBrawlerDef } from '../../data/brawlerDefs';
 import { UPGRADE_COSTS } from '../../types';
 import { vocabulary } from '../../data/vocabulary';
@@ -14,10 +15,13 @@ interface Props {
   onBack: () => void;
 }
 
+const GADGET_ORDER: GadgetType[] = ['scula', 'sursis', 'pacanele'];
+
 export function BrawlersScreen({ onBack }: Props) {
   const brawlerStore = useBrawlerStore();
   const { trophies: globalTrophies } = usePlayerStore();
   const { powerPoints, coins } = useEconomyStore();
+  const gadgetStore = useGadgetStore();
   const [selectedId, setSelectedId] = useState(brawlerStore.activeBrawlerId);
 
   const selectedDef = getBrawlerDef(selectedId);
@@ -47,12 +51,20 @@ export function BrawlersScreen({ onBack }: Props) {
     if (ok) playLevelUp();
   }
 
+  function handleBuyGadget(gadget: GadgetType) {
+    playTap();
+    gadgetStore.buy(selectedId, gadget);
+  }
+
   return (
     <div className="h-full flex flex-col bg-gradient-to-b from-[#12123a] via-[#0e0e2a] to-[#080818]">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 pt-5 pb-3 border-b border-brawl-border">
         <button onClick={() => { playTap(); onBack(); }} className="text-2xl text-brawl-yellow active:scale-90 transition-transform">←</button>
         <h1 className="font-display text-2xl text-brawl-yellow tracking-wide">Brawlers</h1>
+        <div className="ml-auto flex items-center gap-1.5">
+          <span className="text-xs text-gray-400 font-body">🪙 {coins}</span>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
@@ -76,9 +88,7 @@ export function BrawlersScreen({ onBack }: Props) {
                 {isActiveBrawler && (
                   <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-brawl-green" />
                 )}
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl
-                  ${unlocked ? '' : 'grayscale'}`}
-                >
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl ${unlocked ? '' : 'grayscale'}`}>
                   {def.image ? (
                     <img src={def.image} alt={def.name} className="w-full h-full object-contain" />
                   ) : (
@@ -106,49 +116,99 @@ export function BrawlersScreen({ onBack }: Props) {
             exit={{ opacity: 0, y: -12 }}
             transition={{ duration: 0.2 }}
           >
-            {/* Brawler card */}
-            <div className="bg-brawl-card border border-brawl-border rounded-2xl p-5 flex flex-col items-center gap-3">
-              <div
-                className="w-24 h-24 rounded-2xl flex items-center justify-center text-5xl shadow-2xl"
-                style={{ boxShadow: `0 0 30px ${selectedDef.glowColor}` }}
-              >
-                {selectedDef.image ? (
-                  <img src={selectedDef.image} alt={selectedDef.name}
-                    className={`w-full h-full object-contain ${!isUnlocked ? 'grayscale opacity-40' : ''}`}
-                  />
-                ) : (
-                  <span className={!isUnlocked ? 'grayscale opacity-40' : ''}>{selectedDef.emoji}</span>
-                )}
-              </div>
-              <div className="text-center">
-                <p className={`font-display text-xl tracking-wide ${selectedDef.colorClass}`}>{selectedDef.name.toUpperCase()}</p>
-                <p className="text-gray-400 text-xs font-body">{selectedDef.theme}</p>
-                {isUnlocked ? (
-                  <p className="text-gray-300 font-body text-sm mt-1">
-                    Nivel {selectedProgress.level}{isMaxLevel ? ' ★ MAX' : ''} · {selectedProgress.trophies} trofee
-                  </p>
-                ) : (
-                  <p className="text-brawl-red text-xs font-body mt-1">
-                    Necesită {selectedDef.unlockTrophies} trofee globale
-                  </p>
-                )}
-              </div>
+            {/* Brawler card — image left, gadgets right */}
+            <div className="bg-brawl-card border border-brawl-border rounded-2xl p-4">
+              <div className="flex gap-4 items-start">
+                {/* Left: image + info + actions */}
+                <div className="flex flex-col items-center gap-2 flex-shrink-0">
+                  <div
+                    className="w-20 h-20 rounded-2xl flex items-center justify-center text-5xl shadow-2xl"
+                    style={{ boxShadow: `0 0 24px ${selectedDef.glowColor}` }}
+                  >
+                    {selectedDef.image ? (
+                      <img src={selectedDef.image} alt={selectedDef.name}
+                        className={`w-full h-full object-contain ${!isUnlocked ? 'grayscale opacity-40' : ''}`}
+                      />
+                    ) : (
+                      <span className={!isUnlocked ? 'grayscale opacity-40' : ''}>{selectedDef.emoji}</span>
+                    )}
+                  </div>
 
-              {/* Set active / locked state */}
-              {isUnlocked && !isActive && (
-                <button
-                  onClick={handleSetActive}
-                  className="px-6 py-2 rounded-xl bg-gradient-to-b from-brawl-yellow to-brawl-orange
-                    font-display text-black text-sm active:scale-95 transition-transform border-2 border-yellow-300/80"
-                >
-                  SELECTEAZĂ
-                </button>
-              )}
-              {isActive && (
-                <div className="px-6 py-2 rounded-xl bg-brawl-green/20 border border-brawl-green/60">
-                  <span className="font-display text-brawl-green text-sm">✓ ACTIV</span>
+                  <div className="text-center">
+                    <p className={`font-display text-base tracking-wide ${selectedDef.colorClass}`}>{selectedDef.name.toUpperCase()}</p>
+                    <p className="text-gray-400 text-[10px] font-body">{selectedDef.theme}</p>
+                    {isUnlocked ? (
+                      <p className="text-gray-300 font-body text-xs mt-0.5">
+                        Nv {selectedProgress.level}{isMaxLevel ? ' ★' : ''} · {selectedProgress.trophies} 🏆
+                      </p>
+                    ) : (
+                      <p className="text-brawl-red text-[10px] font-body mt-0.5">
+                        🏆 {selectedDef.unlockTrophies} necesare
+                      </p>
+                    )}
+                  </div>
+
+                  {isUnlocked && !isActive && (
+                    <button
+                      onClick={handleSetActive}
+                      className="px-4 py-1.5 rounded-xl bg-gradient-to-b from-brawl-yellow to-brawl-orange
+                        font-display text-black text-xs active:scale-95 transition-transform border-2 border-yellow-300/80"
+                    >
+                      SELECTEAZĂ
+                    </button>
+                  )}
+                  {isActive && (
+                    <div className="px-4 py-1.5 rounded-xl bg-brawl-green/20 border border-brawl-green/60">
+                      <span className="font-display text-brawl-green text-xs">✓ ACTIV</span>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Right: gadget buy buttons */}
+                <div className="flex-1 flex flex-col gap-2">
+                  <p className="font-display text-[10px] text-gray-500 tracking-widest uppercase">Gadgets</p>
+                  {GADGET_ORDER.map((gadget) => {
+                    const minLvl = GADGET_MIN_LEVEL[gadget];
+                    const owned = gadgetStore.has(selectedId, gadget);
+                    const levelOk = selectedProgress.level >= minLvl;
+                    const canBuy = isUnlocked && levelOk && !owned && coins >= GADGET_COSTS[gadget];
+
+                    return (
+                      <div
+                        key={gadget}
+                        className={`rounded-xl border p-2 flex flex-col gap-1 transition-all
+                          ${owned ? 'border-brawl-green/50 bg-brawl-green/10'
+                            : levelOk ? 'border-brawl-border bg-black/30'
+                            : 'border-gray-700/40 bg-black/20 opacity-60'}`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-display text-xs text-white tracking-wide">{GADGET_LABELS[gadget]}</span>
+                          {owned ? (
+                            <span className="text-brawl-green text-xs font-display">✓</span>
+                          ) : levelOk ? (
+                            <span className="text-[10px] font-body text-gray-400">🪙 {GADGET_COSTS[gadget]}</span>
+                          ) : (
+                            <span className="text-[10px] font-body text-gray-500">Lv {minLvl}+</span>
+                          )}
+                        </div>
+                        <p className="text-[9px] text-gray-500 font-body leading-tight">{GADGET_DESCRIPTIONS[gadget]}</p>
+                        {!owned && levelOk && isUnlocked && (
+                          <button
+                            onClick={() => handleBuyGadget(gadget)}
+                            disabled={!canBuy}
+                            className={`mt-0.5 w-full py-1 rounded-lg font-display text-xs transition-all active:scale-95
+                              ${canBuy
+                                ? 'bg-gradient-to-r from-brawl-yellow to-brawl-orange text-black border border-yellow-300/50'
+                                : 'bg-gray-700/50 text-gray-500 border border-gray-600/30 cursor-not-allowed'}`}
+                          >
+                            {canBuy ? 'CUMPĂRĂ' : 'Insuficient'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             </div>
 
             {/* Upgrade section */}
@@ -218,7 +278,6 @@ function BrawlerWordList({ brawlerId, isUnlocked, colorClass }: { brawlerId: str
 
       {expanded && isUnlocked && (
         <div className="px-4 pb-4">
-          {/* Progress to next unlock */}
           {unlockedWords.length < allWords.length && (
             <div className="mb-3">
               <div className="flex justify-between text-[10px] text-gray-500 font-body mb-1">
@@ -234,7 +293,6 @@ function BrawlerWordList({ brawlerId, isUnlocked, colorClass }: { brawlerId: str
             </div>
           )}
 
-          {/* Word list */}
           <div className="space-y-1 max-h-64 overflow-y-auto">
             {unlockedWords.map((w) => (
               <div key={w.id} className="flex items-center justify-between py-1 border-b border-brawl-border/30">

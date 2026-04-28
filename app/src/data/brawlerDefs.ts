@@ -3,7 +3,7 @@ import type { BrawlerDef } from '../types';
 export const BRAWLER_DEFS: BrawlerDef[] = [
   {
     id: 'shelly',
-    name: 'Shelly',
+    name: 'Blaze',
     emoji: '🚂',
     theme: 'Transport & Reisen',
     categories: ['transport'],
