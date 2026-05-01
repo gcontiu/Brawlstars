@@ -94,7 +94,7 @@ export function LobbyScreen({ onPlay, onGameModes, onShop, onBrawlers, onTrophyR
         {/* Side buttons RIGHT */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-3">
           <FeedbackButton />
-          <DevCheatButton />
+          {import.meta.env.VITE_DEV_CHEAT === 'true' && <DevCheatButton />}
         </div>
 
         {/* Brawler display — clickable → deschide lista brawleri */}
